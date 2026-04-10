@@ -1,0 +1,35 @@
+[
+  {
+    "id": "count_0",
+    "data": {
+      "image": "count_0.jpg"
+    }
+  },
+  {
+    "id": "count_1",
+    "data": {
+      "image": "count_1.jpg"
+    }
+  },
+  {
+    "id": "count_2",
+    "data": {
+      "image": "count_2.jpg",
+      "count_output": {"count": 3}
+    }
+  },
+  {
+    "id": "count_3",
+    "data": {
+      "image": "count_3.jpg",
+      "count_output": {"count": 8}
+    }
+  },
+  {
+    "id": "count_4",
+    "data": {
+      "image": "count_4.jpg",
+      "count_output": {"count": 6}
+    }
+  }
+]

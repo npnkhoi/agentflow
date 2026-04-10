@@ -1,0 +1,135 @@
+[
+  {
+    "id": "argtree_2026__0145__149_image",
+    "data": {
+      "id": "argtree_2026__0145__149_image",
+      "image": "149_image.png",
+      "graph": {
+        "nodes": [
+          {
+            "idx": 0,
+            "text": "Trump's attempt to profit off of COVID is depraved",
+            "type": "claim"
+          },
+          {
+            "idx": 1,
+            "text": "Trump attempted to secure exclusive, for-profit control over a coronavirus vaccine",
+            "type": "claim"
+          },
+          {
+            "idx": 2,
+            "text": "Trump reportedly offered a German firm $1,000,000,000 for exclusive rights to any coronavirus vaccine",
+            "type": "element"
+          },
+          {
+            "idx": 3,
+            "text": "Trump wanted to not only to control any new vaccine but also to make sure that it would only be available on a for-profit basis",
+            "type": "element"
+          },
+          {
+            "idx": 4,
+            "text": "Trying to profit off of the suffering of the entire world is depraved",
+            "type": "element"
+          }
+        ],
+        "arguments": [
+          {
+            "claim": 0,
+            "premises": [
+              1,
+              4
+            ],
+            "type": "support"
+          },
+          {
+            "claim": 1,
+            "premises": [
+              2,
+              3
+            ],
+            "type": "support"
+          }
+        ]
+      }
+    }
+  },
+  {
+    "id": "argtree_2026__0149__148_image",
+    "data": {
+      "id": "argtree_2026__0149__148_image",
+      "image": "148_image.png",
+      "graph": {
+        "nodes": [
+          {
+            "idx": 0,
+            "text": "Trump should be voted out of office because he lied about COVID and endangered everyone",
+            "type": "claim"
+          },
+          {
+            "idx": 1,
+            "text": "Trump lied about the COVID-19 pandemic",
+            "type": "claim"
+          },
+          {
+            "idx": 2,
+            "text": "Trump",
+            "type": "element"
+          },
+          {
+            "idx": 3,
+            "text": "Trump said COVID wasn't real, was contained, and would disappear while blaming Democrats and sharing hunches",
+            "type": "element"
+          },
+          {
+            "idx": 4,
+            "text": "Trump endangered the public during the pandemic",
+            "type": "claim"
+          },
+          {
+            "idx": 5,
+            "text": "Trump overruled scientists and failed to protect the public",
+            "type": "element"
+          },
+          {
+            "idx": 6,
+            "text": "\"Vote it out\"",
+            "type": "element"
+          }
+        ],
+        "arguments": [
+          {
+            "claim": 0,
+            "premises": [
+              1,
+              4
+            ],
+            "type": "support"
+          },
+          {
+            "claim": 1,
+            "premises": [
+              2,
+              3
+            ],
+            "type": "support"
+          },
+          {
+            "claim": 4,
+            "premises": [
+              2,
+              5
+            ],
+            "type": "support"
+          },
+          {
+            "claim": 0,
+            "premises": [
+              6
+            ],
+            "type": "support"
+          }
+        ]
+      }
+    }
+  }
+]

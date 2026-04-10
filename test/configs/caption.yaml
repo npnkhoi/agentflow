@@ -1,0 +1,18 @@
+name: test_caption
+wandb_enabled: false
+loader:
+  source: agentflow/test/data/test_data.json
+  kwargs:
+    image_dir: agentflow/test/data/images
+models:
+  gemma:
+    cls: openai
+    base_url: "http://0.0.0.0:8000/v1"
+    token: "-"
+    model_id: google/gemma-3-27b-it
+stages:
+  - inputs:
+      - [Image, human]
+    output: SampleOutput
+    processor: LLMProcessor
+    model: gemma
