@@ -36,7 +36,7 @@ class StageConfig(BaseModel):
 
     # name: str
     # args: list[Any] | None = None
-    # kwargs: dict[str, Any] | None = None
+    kwargs: dict[str, Any] | None = None
     inputs: list[
         Union[
             tuple[str, AnnotationSource],

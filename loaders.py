@@ -22,6 +22,8 @@ class DataItemLoader(Loader):
     [{"id": str, "data": dict}, ...]
     """
     def __init__(self, path: Path, image_dir: str):
+        self.source_path = Path(path).resolve()
+        self.image_dir = Path(image_dir).resolve()
         with path.open("r", encoding="utf-8") as f:
             data = json.load(f)
         image_dir = Path(image_dir)
