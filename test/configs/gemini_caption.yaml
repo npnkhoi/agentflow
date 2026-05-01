@@ -1,0 +1,18 @@
+name: test_gemini_caption
+wandb_enabled: false
+loader:
+  source: agentflow/test/data/test_data.json
+  kwargs:
+    image_dir: agentflow/test/data/images
+models:
+  gemini:
+    cls: gemini
+    base_url: ""
+    token: "${GEMINI_API_KEY}"
+    model_id: gemini-2.5-flash
+stages:
+  - inputs:
+      - [Image, human]
+    output: SampleOutput
+    processor: LLMProcessor
+    model: gemini

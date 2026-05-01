@@ -31,6 +31,7 @@ When `output_type` is provided, models that support structured output (JSON sche
 
 Uses the OpenAI Python SDK with any OpenAI-compatible endpoint. Works with:
 - OpenAI API (`https://api.openai.com/v1`)
+- Azure OpenAI (`https://<resource>.openai.azure.com/openai/v1/`)
 - Local vLLM servers (`http://0.0.0.0:8000/v1`)
 - OpenRouter (`https://openrouter.ai/api/v1`)
 - LM Studio and similar
@@ -39,25 +40,14 @@ Uses the OpenAI Python SDK with any OpenAI-compatible endpoint. Works with:
 models:
   my_model:
     cls: openai
-    base_url: "http://0.0.0.0:8000/v1"
-    token: "-"          # use "-" for local servers with no auth
-    model_id: google/gemma-3-27b-it
-```
-
-Structured output is requested via `response_format` with a JSON schema.
-
-### AzureVLM
-
-Extends `OpenAILLM` for Azure OpenAI. Reads `AZURE_OPENAI_API_VERSION` from the environment (default: `2025-01-01-preview`).
-
-```yaml
-models:
-  azure:
-    cls: azure
-    base_url: "https://my-resource.openai.azure.com/"
-    token: "<azure-api-key>"
+    base_url: "https://api.openai.com/v1"
+    token: "${OPENAI_API_KEY}"
     model_id: gpt-4o
 ```
+
+For local servers with no auth, use `token: "-"` and set `base_url` to the local endpoint.
+
+Structured output is requested via `response_format` with a JSON schema.
 
 ### GeminiVLM
 
@@ -71,7 +61,7 @@ models:
   gemini:
     cls: gemini
     base_url: ""        # not used; kept for interface consistency
-    token: "<GEMINI_API_KEY>"
+    token: "${GEMINI_API_KEY}"
     model_id: gemini-2.0-flash
 ```
 
@@ -83,8 +73,8 @@ Models are declared once in the `models` section and referenced by name in each 
 
 ```yaml
 models:
-  fast: {cls: openai, base_url: "...", token: "...", model_id: gpt-4o-mini}
-  strong: {cls: openai, base_url: "...", token: "...", model_id: gpt-4o}
+  fast: {cls: openai, base_url: "...", token: "${OPENAI_API_KEY}", model_id: gpt-4o-mini}
+  strong: {cls: openai, base_url: "...", token: "${OPENAI_API_KEY}", model_id: gpt-4o}
 
 stages:
   - output: Draft

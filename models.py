@@ -1,11 +1,10 @@
 import time
 import httpx
 from pathlib import Path
-from openai import AzureOpenAI, OpenAI
+from openai import OpenAI
 import pydantic_core
 from pydantic import BaseModel
 from dotenv import load_dotenv
-import os
 import base64
 
 load_dotenv()
@@ -103,15 +102,6 @@ class OpenAILLM(BaseLLM):
         content = str(chat_completion.choices[0].message.content)
         print("OUTPUT:", content, file=logger, flush=True)
         return content
-
-
-class AzureVLM(OpenAILLM):
-    def _do_init(self) -> None:
-        self._client = AzureOpenAI(
-            api_key=self._token,
-            azure_endpoint=self._base_url,
-            api_version=os.getenv("AZURE_OPENAI_API_VERSION", "2025-01-01-preview"),
-        )
 
 
 class GeminiVLM(BaseLLM):

@@ -2,13 +2,20 @@ from pydantic import BaseModel, model_validator, field_validator
 from pathlib import Path
 from typing import Any, Union
 from enum import Enum
+import os
+import re
 from agentflow.const import AnnotationSource, DemoSelect
 
 class ModelConfig(BaseModel):
-    cls: str = "openai"  # "openai" | "azure" | "gemini"
+    cls: str = "openai"  # "openai" | "gemini"
     base_url: str
     token: str = ""
     model_id: str
+
+    @field_validator("token", mode="before")
+    @classmethod
+    def _expand_env_vars(cls, v: str) -> str:
+        return re.sub(r"\$\{([^}]+)\}", lambda m: os.environ.get(m.group(1), ""), v)
 
 
 class LoaderConfig(BaseModel):
