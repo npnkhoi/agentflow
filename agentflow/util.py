@@ -1,19 +1,4 @@
 import re
-import signal
-import threading
-
-
-# allows lockout of termination while writing to results file
-class ShutdownFlag:
-    def __init__(self):
-        self.lock = threading.Lock()
-
-        def raise_flag(_signum, _frame):
-            with self.lock:
-                raise InterruptedError()
-
-        signal.signal(signal.SIGTERM, raise_flag)
-        signal.signal(signal.SIGINT, raise_flag)
 
 
 def camel_to_snake(camel_case_string: str) -> str:

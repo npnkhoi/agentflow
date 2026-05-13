@@ -1,4 +1,5 @@
 import time
+from tqdm import tqdm
 from pathlib import Path
 from collections.abc import Callable
 from typing import cast
@@ -8,7 +9,7 @@ from pydantic import BaseModel
 from agentflow.loaders import Loader, Cache, DataItemLoader
 from agentflow.models import BaseLLM
 from agentflow.const import AnnotationSource
-from agentflow.util import ShutdownFlag, camel_to_snake
+from agentflow.util import camel_to_snake
 
 
 class Stage:
@@ -102,7 +103,6 @@ class Pipeline:
         self._root = root.resolve()
         self._loader = loader
         self._prompt_dir = Path(prompt_dir)
-        self._shutdown_flag = ShutdownFlag()
         self._demo_pools = cfg.demo_pools
         self._models: dict[str, BaseLLM] = {
             name: self._model_backends[mcfg.cls](
@@ -156,7 +156,7 @@ class Pipeline:
         return None
 
     def execute_all(self):
-        for item_id in self.item_ids:
+        for item_id in tqdm(self.item_ids):
             self.execute(item_id)
 
     def execute(self, item_id: str) -> bool:
@@ -207,8 +207,6 @@ class Pipeline:
             start_time = time.perf_counter()
             try:
                 output_data = processor(inputs, logger, output_dir=output_dir)
-            except (KeyboardInterrupt, InterruptedError):
-                raise
             except Exception as e:
                 print(f"Stage {stage_id} raised {type(e).__name__}: {e}", file=logger, flush=True)
                 print(f"Stage {stage_id} raised {type(e).__name__}: {e}")
@@ -219,8 +217,7 @@ class Pipeline:
         if output_data is None:
             return False
 
-        with self._shutdown_flag.lock:
-            storer.store(item_id, output_data)
+        storer.store(item_id, output_data)
         return True
 
 
