@@ -18,6 +18,9 @@ dependencies = [
     
 ]
 
+[project.scripts]
+agentflow = "agentflow.cli:main"
+
 [tool.setuptools.packages.find]
 where = ["."]
 include = ["agentflow*"]
