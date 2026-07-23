@@ -9,7 +9,7 @@ models:
     cls: openai
     base_url: "http://0.0.0.0:8000/v1"
     token: "-"
-    model_id: google/gemma-3-27b-it
+    model_id: SmolVLM-500M-Instruct
 demo_pools:
   count_pool:
     source: agentflow/test/data/demo_pool_count.json
@@ -23,4 +23,4 @@ stages:
     demo:
       pool: count_pool
       select: random
-      shots: 3
+      shots: 2

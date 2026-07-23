@@ -1,7 +1,11 @@
 """
 Integration tests for Pipeline.
-Assumes google/gemma-3-27b-it is running at http://0.0.0.0:8000 (OpenAI-compatible).
-Run from the repo root: pytest agentflow/test/test_integration.py -v
+Assumes an OpenAI-compatible vision server is running at http://0.0.0.0:8000.
+Start one with llama.cpp (SmolVLM-500M, 8K context):
+
+    llama-server -hf ggml-org/SmolVLM-500M-Instruct-GGUF --host 0.0.0.0 --port 8000 -c 8192
+
+Run from the repo root: pytest test/test_integration.py -v
 """
 import json
 import shutil

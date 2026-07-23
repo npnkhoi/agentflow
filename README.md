@@ -124,10 +124,24 @@ Then reference these names in YAML as normal. See [docs/extension_points.md](doc
 
 ## Running tests
 
-Tests require a vLLM-compatible server at `http://0.0.0.0:8000` serving `google/gemma-3-27b-it`:
+The integration tests (`test/test_integration.py`) need an OpenAI-compatible
+server with vision support at `http://0.0.0.0:8000`. The lightweight
+[SmolVLM-500M](https://huggingface.co/ggml-org/SmolVLM-500M-Instruct-GGUF)
+(~1 GB, downloaded automatically on first run) served via
+[`llama.cpp`](https://github.com/ggml-org/llama.cpp) is enough — the tests
+assert that well-formed output is produced, and structured JSON output is
+enforced by the server's grammar regardless of model size. In a separate
+terminal:
 
 ```bash
-pytest test/ -v
+llama-server -hf ggml-org/SmolVLM-500M-Instruct-GGUF --host 0.0.0.0 --port 8000 -c 8192
+```
+
+The `-c 8192` (8K context) leaves room for the demo-shot prompts used by some
+test configs. Once the server is up (`curl http://0.0.0.0:8000/health`), run:
+
+```bash
+pytest test/test_integration.py -v
 ```
 
 Unit tests for `InputFormater` run without a server:
@@ -135,3 +149,6 @@ Unit tests for `InputFormater` run without a server:
 ```bash
 pytest test/test_input_formater.py -v
 ```
+
+`test/test_models.py` exercises the hosted OpenAI/Azure and Gemini backends and
+needs API keys in `.env` (see `.env.example`), not the local server.
