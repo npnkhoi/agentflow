@@ -50,7 +50,7 @@ class Client:
                     cfg.wandb_enabled = False
 
         # get pipeline
-        pipeline = Pipeline(cfg, prompt_dir=self.prompt_dir)
+        pipeline = Pipeline(config_file.name, prompt_dir=self.prompt_dir)
 
         # determine item_ids to run
         if (cfg.include is not None) and (cfg.exclude is not None):

@@ -1,4 +1,5 @@
 import time
+import yaml
 from tqdm import tqdm
 from pathlib import Path
 from collections.abc import Callable
@@ -91,7 +92,21 @@ class Pipeline:
         """
         cls._model_backends[name] = backend
 
-    def __init__(self, cfg: Config, prompt_dir: str = "prompts"):
+    @staticmethod
+    def load_config(config_path: "str | Path") -> Config:
+        """Load and validate a YAML config file into a ``Config``."""
+        raw = yaml.safe_load(Path(config_path).read_text(encoding="utf-8"))
+        return Config.model_validate(raw)
+
+    def __init__(self, config_path: "str | Path", prompt_dir: str = "prompts"):
+        """Build a pipeline from a YAML config file path.
+
+            pipeline = Pipeline("configs/caption.yaml")
+
+        ``config_path`` is the path to a YAML config file, which is loaded and
+        validated into a ``Config``.
+        """
+        cfg = self.load_config(config_path)
         if cfg.loader.args is None:
             cfg.loader.args = []
         if cfg.loader.kwargs is None:

@@ -3,9 +3,11 @@ Integration tests for OpenAILLM and GeminiVLM via full pipeline config.
 Requires API keys in .env (see .env.example).
 Run: pytest test/test_models.py -v
 """
+
 import json
 import os
 import shutil
+import tempfile
 from pathlib import Path
 
 import pytest
@@ -14,7 +16,6 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-from agentflow.typing.config import Config
 from agentflow.pipeline import Pipeline
 
 TEST_DIR = Path(__file__).parent
@@ -23,18 +24,22 @@ OUTPUT_DIR = Path("output")
 CONFIGS_DIR = TEST_DIR / "configs"
 
 
-def load_config(name: str) -> Config:
+def resolved_config_path(name: str) -> str:
+    """Load a config, resolve relative data paths to absolute, and write it to a
+    temp YAML file. Returns the temp file path."""
     raw = yaml.safe_load((CONFIGS_DIR / name).read_text())
     repo_root = TEST_DIR.parent.parent
     loader = raw["loader"]
     loader["source"] = str(repo_root / loader["source"])
     loader["kwargs"]["image_dir"] = str(repo_root / loader["kwargs"]["image_dir"])
-    return Config.model_validate(raw)
+    fd, path = tempfile.mkstemp(prefix="af_cfg_", suffix=f"_{name}")
+    with open(fd, "w", encoding="utf-8") as f:
+        yaml.safe_dump(raw, f)
+    return path
 
 
 def run_pipeline(config_name: str) -> Pipeline:
-    cfg = load_config(config_name)
-    net = Pipeline(cfg, prompt_dir=str(PROMPT_DIR))
+    net = Pipeline(resolved_config_path(config_name), prompt_dir=str(PROMPT_DIR))
     net.execute_all()
     return net
 

@@ -1,26 +1,23 @@
 # AgentFlow
 
-A lightweight framework for building batch LLM/VLM pipelines over structured datasets.
+A framework for processing batches of data over agent-based processing graphs. Suitable for running inference and automatic evaluation with static agentic workflows.
 
 ## What it does
 
-Pipeline runs a configurable sequence of processing stages over a dataset. Each stage reads its inputs (either from the original dataset or from a previous stage's outputs), calls a processor, and writes results to disk. All outputs are cached — re-running skips completed items automatically.
+Agentflow runs a sequence of processing stages over multiple data items.
+Each stage reads its inputs (either from the original dataset or from a previous stage's outputs), calls a processor, and writes results to disk.
+All outputs are cached (index by (item's ID, stage)) — re-running skips completed item/stage's automatically.
 
 ## Quick start
 
 ```python
-import yaml
 from agentflow.pipeline import Pipeline
-from agentflow.typing.config import Config
 
-with open("pipeline.yaml") as f:
-    cfg = Config.model_validate(yaml.safe_load(f))
-
-net = Pipeline(cfg, prompt_dir="prompts/")
+# The constructor takes the path to a YAML config file; it is loaded and
+# validated internally.
+net = Pipeline("pipeline.yaml", prompt_dir="prompts/")
 net.execute_all()
 ```
-
-Or use the `Client` wrapper for production runs (parallel execution, wandb logging, include/exclude filtering):
 
 ```python
 from agentflow.client import Client
@@ -125,13 +122,12 @@ Then reference these names in YAML as normal. See [docs/extension_points.md](doc
 ## Running tests
 
 The integration tests (`test/test_integration.py`) need an OpenAI-compatible
-server with vision support at `http://0.0.0.0:8000`. The lightweight
-[SmolVLM-500M](https://huggingface.co/ggml-org/SmolVLM-500M-Instruct-GGUF)
-(~1 GB, downloaded automatically on first run) served via
-[`llama.cpp`](https://github.com/ggml-org/llama.cpp) is enough — the tests
-assert that well-formed output is produced, and structured JSON output is
-enforced by the server's grammar regardless of model size. In a separate
+server with vision support at `http://0.0.0.0:8000`, served via
+[`llama.cpp`](https://github.com/ggml-org/llama.cpp) (`llama-server`). The
+model is downloaded automatically on first run. Pick one in a separate
 terminal:
+
+**Lightweight — [SmolVLM-500M](https://huggingface.co/ggml-org/SmolVLM-500M-Instruct-GGUF)** (~1 GB, fast, minimal RAM):
 
 ```bash
 llama-server -hf ggml-org/SmolVLM-500M-Instruct-GGUF --host 0.0.0.0 --port 8000 -c 8192
@@ -144,7 +140,7 @@ test configs. Once the server is up (`curl http://0.0.0.0:8000/health`), run:
 pytest test/test_integration.py -v
 ```
 
-Unit tests for `InputFormater` run without a server:
+Unit tests for `InputFormater` run without any server:
 
 ```bash
 pytest test/test_input_formater.py -v

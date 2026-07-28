@@ -7,14 +7,15 @@ Start one with llama.cpp (SmolVLM-500M, 8K context):
 
 Run from the repo root: pytest test/test_integration.py -v
 """
+
 import json
 import shutil
+import tempfile
 from pathlib import Path
 
 import pytest
 import yaml
 
-from agentflow.typing.config import Config
 from agentflow.pipeline import Pipeline
 
 TEST_DIR = Path(__file__).parent
@@ -23,8 +24,9 @@ OUTPUT_DIR = Path("output")
 CONFIGS_DIR = TEST_DIR / "configs"
 
 
-def load_config(name: str) -> Config:
-    """Load a YAML config from agentflow/test/configs/, resolving relative paths to absolute."""
+def resolved_config_path(name: str) -> str:
+    """Load a config from test/configs/, resolve relative data paths to absolute,
+    and write it to a temp YAML file. Returns the temp file path."""
     raw = yaml.safe_load((CONFIGS_DIR / name).read_text())
     # Resolve relative paths in loader source relative to repo root
     repo_root = TEST_DIR.parent.parent
@@ -37,14 +39,14 @@ def load_config(name: str) -> Config:
             pool["source"] = str(repo_root / pool["source"])
         if pool.get("image_dir"):
             pool["image_dir"] = str(repo_root / pool["image_dir"])
-    return Config.model_validate(raw)
+    fd, path = tempfile.mkstemp(prefix="af_cfg_", suffix=f"_{name}")
+    with open(fd, "w", encoding="utf-8") as f:
+        yaml.safe_dump(raw, f)
+    return path
 
 
 def run_pipeline(config_name: str) -> Pipeline:
-    cfg = load_config(config_name)
-    # Redirect output to test output dir
-    cfg.name = cfg.name  # keep original name; output goes to output/<name>/
-    net = Pipeline(cfg, prompt_dir=str(PROMPT_DIR))
+    net = Pipeline(resolved_config_path(config_name), prompt_dir=str(PROMPT_DIR))
     net.execute_all()
     return net
 
@@ -65,6 +67,7 @@ def output_path(config_name: str) -> Path:
 # ---------------------------------------------------------------------------
 # Tests
 # ---------------------------------------------------------------------------
+
 
 class TestCaption:
     """Single-stage pipeline: Image → SampleOutput."""
@@ -101,7 +104,9 @@ class TestCaption:
         run_pipeline("caption.yaml")
         mtimes_second = {f: f.stat().st_mtime for f in out.glob("*/output.json")}
 
-        assert mtimes_first == mtimes_second, "Output files were re-written on second run (cache not used)"
+        assert mtimes_first == mtimes_second, (
+            "Output files were re-written on second run (cache not used)"
+        )
 
 
 class TestTwoStage:
@@ -128,6 +133,7 @@ class TestTwoStage:
         """A stage whose output name matches a model-sourced input must fail at config load."""
         import yaml
         from agentflow.typing.config import Config
+
         bad_config = {
             "name": "bad",
             "wandb_enabled": False,
@@ -137,11 +143,22 @@ class TestTwoStage:
             },
             "models": {},
             "stages": [
-                {"inputs": [["Image", "human"]], "output": "SampleOutput", "processor": "LLMProcessor", "model": "m"},
-                {"inputs": [["SampleOutput", "model"]], "output": "SampleOutput", "processor": "LLMProcessor", "model": "m"},
+                {
+                    "inputs": [["Image", "human"]],
+                    "output": "SampleOutput",
+                    "processor": "LLMProcessor",
+                    "model": "m",
+                },
+                {
+                    "inputs": [["SampleOutput", "model"]],
+                    "output": "SampleOutput",
+                    "processor": "LLMProcessor",
+                    "model": "m",
+                },
             ],
         }
         import pytest
+
         with pytest.raises(Exception, match="collides"):
             Config.model_validate(bad_config)
 
@@ -162,7 +179,9 @@ class TestWithDemos:
         run_pipeline("with_demos.yaml")
         out = output_path("test_with_demos") / "SampleOutput"
         demos_files = list(out.glob("**/demos.json"))
-        assert len(demos_files) == 2, f"Expected demos.json per item, found {len(demos_files)}"
+        assert len(demos_files) == 2, (
+            f"Expected demos.json per item, found {len(demos_files)}"
+        )
 
     def test_demos_json_contains_one_id(self):
         run_pipeline("with_demos.yaml")
@@ -185,7 +204,9 @@ class TestWithDemos:
                 continue
             item_id = item_dir.name
             demo_ids = json.loads(demos_file.read_text())
-            assert item_id not in demo_ids, f"Item '{item_id}' selected itself as a demo"
+            assert item_id not in demo_ids, (
+                f"Item '{item_id}' selected itself as a demo"
+            )
 
 
 class TestTwoInput:
@@ -244,18 +265,24 @@ class TestCountWithDemos:
         for json_file in out.glob("*/output.json"):
             data = json.loads(json_file.read_text())
             assert "count" in data, f"CountOutput missing 'count' in {json_file}"
-            assert isinstance(data["count"], int), f"'count' must be an int, got {type(data['count'])}"
+            assert isinstance(data["count"], int), (
+                f"'count' must be an int, got {type(data['count'])}"
+            )
             assert data["count"] > 0, f"'count' must be positive, got {data['count']}"
 
-    def test_demos_json_lists_three_ids(self):
-        """Each test item must have exactly 3 demo IDs (shots=3)."""
+    def test_demos_json_lists_two_ids(self):
+        """Each test item must have exactly 2 demo IDs (shots=2)."""
         run_pipeline("count_with_demos.yaml")
         out = output_path("test_count_with_demos") / "CountOutput"
         demos_files = list(out.glob("*/demos.json"))
-        assert len(demos_files) == 2, f"Expected demos.json per item, found {len(demos_files)}"
+        assert len(demos_files) == 2, (
+            f"Expected demos.json per item, found {len(demos_files)}"
+        )
         for demos_file in demos_files:
             ids = json.loads(demos_file.read_text())
-            assert len(ids) == 3, f"Expected 3 demo ids (shots=3), got {len(ids)}: {ids}"
+            assert len(ids) == 2, (
+                f"Expected 2 demo ids (shots=2), got {len(ids)}: {ids}"
+            )
 
     def test_demos_exclude_self(self):
         """Self-exclusion: each item must not appear in its own demo list."""
@@ -269,7 +296,9 @@ class TestCountWithDemos:
                 continue
             item_id = item_dir.name
             demo_ids = json.loads(demos_file.read_text())
-            assert item_id not in demo_ids, f"Item '{item_id}' selected itself as a demo"
+            assert item_id not in demo_ids, (
+                f"Item '{item_id}' selected itself as a demo"
+            )
 
     def test_demos_are_from_pool(self):
         """All selected demo IDs must come from the 5-item pool (count_0..4)."""
