@@ -74,6 +74,16 @@ prints a per-item verdict plus overall accuracy:
 accuracy: 3/8 = 37.5%
 ```
 
+To browse the results stage by stage — the figure, the expressions, what the
+calculator made of them, the final verdict — use the Streamlit viewer:
+
+```bash
+streamlit run agentflow/viewer.py -- examples/elementary_math/configs output
+```
+
+To reach it from another machine, see
+[Sharing it over Cloudflare](../../README.md#sharing-it-over-cloudflare).
+
 Qwen2.5-VL-3B gets roughly 3/8 here. The failures are visual — miscounting
 objects in a CLEVR scene, misreading an IQ-test grid — not arithmetic, which is
 what outsourcing step 2 to a calculator is meant to buy you.

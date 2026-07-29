@@ -229,7 +229,9 @@ Pipeline.register_model_backend("my_provider", MyLLMClass)
 
 See [docs/extension_points.md](docs/extension_points.md) for the full reference.
 
-## Output layout
+## Output
+
+### File layout
 
 ```
 output/<pipeline-name>/
@@ -239,6 +241,46 @@ output/<pipeline-name>/
       run.log       # model call log for this item
       demos.json    # (if demos enabled) list of selected demo item_ids
 ```
+
+### Hosting output visualizer
+
+A Streamlit app browses a pipeline's results stage by stage — the input image,
+each stage's inputs beside its output, and the run log when a stage failed:
+
+```bash
+streamlit run agentflow/viewer.py -- <configs_dir> <output_dir>
+
+# e.g. the elementary-math example, from the repo root
+streamlit run agentflow/viewer.py -- examples/elementary_math/configs output
+```
+
+It picks up any config in `<configs_dir>` and reads whatever has already been
+written to `<output_dir>`, so it can be left open while a pipeline runs.
+
+To view the app from another machine — a laptop, when the pipeline runs on a
+remote GPU box — put a [Cloudflare quick tunnel](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/do-more-with-tunnels/trycloudflare/)
+in front of it. Start the viewer bound to localhost:
+
+```bash
+streamlit run agentflow/viewer.py \
+  --server.port 8501 --server.headless true --server.address 127.0.0.1 \
+  -- examples/elementary_math/configs output
+```
+
+Then, in a second terminal:
+
+```bash
+cloudflared tunnel --url http://127.0.0.1:8501
+```
+
+`cloudflared` prints a `https://<random-words>.trycloudflare.com` URL that
+proxies to the local app. No Cloudflare account or DNS setup is needed.
+
+> **The URL is public and unauthenticated.** Anyone who has it can read every
+> item, prompt output, and run log the viewer exposes. Quick tunnels are
+> ephemeral — the URL changes on every restart and dies with the process — but
+> while it is up there is no access control. Do not use it for data you would
+> not publish, and stop the tunnel when you are done.
 
 ## Documentation
 
