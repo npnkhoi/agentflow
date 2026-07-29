@@ -1,9 +1,9 @@
 name: test_gemini_caption
 wandb_enabled: false
 loader:
-  source: agentflow/test/data/test_data.json
+  source: data/items.json
   kwargs:
-    image_dir: agentflow/test/data/images
+    image_dir: data/images
 models:
   gemini:
     cls: gemini
