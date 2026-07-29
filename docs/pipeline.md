@@ -2,22 +2,28 @@
 
 ## Pipeline
 
-`Pipeline` is the top-level pipeline object. It is constructed from a `Config` and a `prompt_dir`.
-All backends (loader, model, output type) are resolved from registries at construction time —
-see [extension_points.md](extension_points.md) for how to register custom backends.
+`Pipeline` is the top-level pipeline object. It is constructed from the path to a
+YAML config file and a `prompt_dir`. The config is loaded and validated internally
+(via `Pipeline.load_config`). All backends (loader, model, output type) are resolved
+from registries at construction time — see [extension_points.md](extension_points.md)
+for how to register custom backends.
 
 
 
 ```python
-net = Pipeline(cfg, prompt_dir="prompts/")
+net = Pipeline("pipeline.yaml", prompt_dir="prompts/")
 net.execute_all()          # run every item in the dataset
 net.execute("item_001")    # run a single item
+
+# Need the validated Config object itself?
+cfg = Pipeline.load_config("pipeline.yaml")  # -> Config
 ```
 
 During construction it:
-1. Instantiates a `DataItemLoader` from `cfg.loader`.
-2. Builds the `models` dict — one lazy `BaseLLM` instance per model declared in `cfg.models`.
-3. For each stage in `cfg.stages`, instantiates an `Stage`.
+1. Loads and validates the YAML file into a `Config`.
+2. Instantiates a `DataItemLoader` from `cfg.loader`.
+3. Builds the `models` dict — one lazy `BaseLLM` instance per model declared in `cfg.models`.
+4. For each stage in `cfg.stages`, instantiates an `Stage`.
 
 ### Key properties / methods
 

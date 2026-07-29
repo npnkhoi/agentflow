@@ -36,7 +36,7 @@ stages:
     ...
 ```
 
-`register_type` must be called before `Pipeline(cfg)`. The typical place is in your domain package's `__init__.py` so it runs at import time.
+`register_type` must be called before constructing `Pipeline(config_path)`. The typical place is in your domain package's `__init__.py` so it runs at import time.
 
 ## Registering the same schema under multiple names
 

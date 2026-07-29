@@ -1,1 +1,0 @@
-You are given an image and a one-sentence caption. Write a single sentence that combines both the visual content and the caption into a richer description. Respond with JSON matching the schema: {"text": "<your description>"}.

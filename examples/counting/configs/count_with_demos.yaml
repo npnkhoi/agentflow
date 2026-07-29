@@ -1,9 +1,9 @@
-name: test_with_demos
+name: test_count_with_demos
 wandb_enabled: false
 loader:
-  source: agentflow/test/data/test_data.json
+  source: data/items.json
   kwargs:
-    image_dir: agentflow/test/data/images
+    image_dir: data/images
 models:
   gemma:
     cls: openai
@@ -11,16 +11,16 @@ models:
     token: "-"
     model_id: SmolVLM-500M-Instruct
 demo_pools:
-  main:
-    source: agentflow/test/data/test_data.json
-    image_dir: agentflow/test/data/images
+  count_pool:
+    source: data/demo_pool.json
+    image_dir: data/images
 stages:
   - inputs:
       - [Image, human]
-    output: SampleOutput
+    output: CountOutput
     processor: LLMProcessor
     model: gemma
     demo:
-      pool: main
+      pool: count_pool
       select: random
-      shots: 1
+      shots: 2
