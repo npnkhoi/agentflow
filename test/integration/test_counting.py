@@ -1,7 +1,7 @@
 """Integration tests for the ``examples/counting`` project (local vision server).
 
 Counting task over CountBench images with a demo pool. Assumes an
-OpenAI-compatible vision server at http://0.0.0.0:8000 (see
+OpenAI-compatible vision server at http://0.0.0.0:8010 (see
 ``test_captioning`` for how to start one).
 
 Dataset: 2 test items (count_0, count_1).

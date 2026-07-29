@@ -5,19 +5,19 @@ loader:
   kwargs:
     image_dir: data/images
 models:
-  gemma:
+  qwen:
     cls: openai
-    base_url: "http://0.0.0.0:8000/v1"
+    base_url: "http://0.0.0.0:8010/v1"
     token: "-"
-    model_id: SmolVLM-500M-Instruct
+    model_id: Qwen/Qwen2.5-VL-3B-Instruct
 stages:
   - inputs:
       - [Image, human]
     output: SampleOutput
     processor: LLMProcessor
-    model: gemma
+    model: qwen
   - inputs:
       - [SampleOutput, model]
     output: RefinedOutput
     processor: LLMProcessor
-    model: gemma
+    model: qwen

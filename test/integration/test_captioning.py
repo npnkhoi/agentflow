@@ -2,9 +2,10 @@
 
 Exercises single-stage, two-stage, two-input, and demo-augmented pipelines that
 caption images. Assumes an OpenAI-compatible vision server at
-http://0.0.0.0:8000. Start one with llama.cpp (SmolVLM-500M, 8K context):
+http://0.0.0.0:8010. Start one with vLLM (Qwen2.5-VL-3B, 8K context):
 
-    llama-server -hf ggml-org/SmolVLM-500M-Instruct-GGUF --host 0.0.0.0 --port 8000 -c 8192
+    vllm serve Qwen/Qwen2.5-VL-3B-Instruct --host 0.0.0.0 --port 8010 \
+      --dtype half --max-model-len 8192 --gpu-memory-utilization 0.85
 
 Run from the repo root:
     pytest test/integration/test_captioning.py -v
