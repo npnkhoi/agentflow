@@ -5,11 +5,11 @@ loader:
   kwargs:
     image_dir: data/images
 models:
-  gemma:
+  qwen:
     cls: openai
-    base_url: "http://0.0.0.0:8000/v1"
+    base_url: "http://0.0.0.0:8010/v1"
     token: "-"
-    model_id: SmolVLM-500M-Instruct
+    model_id: Qwen/Qwen2.5-VL-3B-Instruct
 demo_pools:
   count_pool:
     source: data/demo_pool.json
@@ -19,7 +19,7 @@ stages:
       - [Image, human]
     output: CountOutput
     processor: LLMProcessor
-    model: gemma
+    model: qwen
     demo:
       pool: count_pool
       select: random

@@ -1,0 +1,46 @@
+name: elementary_math
+wandb_enabled: false
+loader:
+  source: data/items.json
+  kwargs:
+    image_dir: data/images
+models:
+  qwen:
+    cls: openai
+    base_url: "http://0.0.0.0:8010/v1"
+    token: "-"
+    model_id: Qwen/Qwen2.5-VL-3B-Instruct
+stages:
+  # 1. Look at the figure and the question, decide what arithmetic is needed.
+  - inputs:
+      - [Image, human]
+      - [QuestionText, human]
+    output: Calculations
+    processor: LLMProcessor
+    model: qwen
+
+  # 2. Do the arithmetic exactly — a calculator, not a model.
+  - inputs:
+      - [Calculations, model]
+    output: CalculatedNumbers
+    processor: CalculatorProcessor
+
+  # 3. Turn the computed numbers into the final answer.
+  - inputs:
+      - [Image, human]
+      - [QuestionText, human]
+      - [Calculations, model]
+      - [CalculatedNumbers, model]
+    output: Answer
+    processor: LLMProcessor
+    model: qwen
+
+  # 4. Evaluation: grade the answer against the ground truth — exact comparison,
+  #    no model, so the score is reproducible.
+  - inputs:
+      - [GroundTruthAnswer, human]
+      - [Answer, model]
+    output: Verdict
+    processor: VerdictProcessor
+    kwargs:
+      tolerance: 0.01

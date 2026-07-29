@@ -1,0 +1,74 @@
+[
+  {
+    "id": "clevr_math_4",
+    "data": {
+      "image": "clevr_math_4.png",
+      "question_text": "Subtract all large rubber spheres. Subtract all big shiny cylinders. How many objects are left?",
+      "ground_truth_answer": 4.0,
+      "source": "CLEVR-Math"
+    }
+  },
+  {
+    "id": "clevr_math_11",
+    "data": {
+      "image": "clevr_math_11.png",
+      "question_text": "Subtract all red things. Subtract all tiny matte balls. How many objects are left?",
+      "ground_truth_answer": 5.0,
+      "source": "CLEVR-Math"
+    }
+  },
+  {
+    "id": "iqtest_78",
+    "data": {
+      "image": "iqtest_78.png",
+      "question_text": "Find the missing value.",
+      "ground_truth_answer": 8.0,
+      "source": "IQTest"
+    }
+  },
+  {
+    "id": "iqtest_98",
+    "data": {
+      "image": "iqtest_98.png",
+      "question_text": "Find the value of the square in the figure.",
+      "ground_truth_answer": 2.0,
+      "source": "IQTest"
+    }
+  },
+  {
+    "id": "iconqa_21",
+    "data": {
+      "image": "iconqa_21.png",
+      "question_text": "Fill in the blank to describe the model. The model has 4 dots divided into 2 equal groups. There are (_) dots in each group.",
+      "ground_truth_answer": 2.0,
+      "source": "IconQA"
+    }
+  },
+  {
+    "id": "iconqa_56",
+    "data": {
+      "image": "iconqa_56.png",
+      "question_text": "What is the perimeter of the rectangle?",
+      "ground_truth_answer": 6.0,
+      "source": "IconQA"
+    }
+  },
+  {
+    "id": "tabmwp_72",
+    "data": {
+      "image": "tabmwp_72.png",
+      "question_text": "A real estate agent drove around the neighborhood and counted the number of houses on each block. How many blocks have exactly 36 houses? (Unit: blocks)",
+      "ground_truth_answer": 1.0,
+      "source": "TabMWP"
+    }
+  },
+  {
+    "id": "tabmwp_144",
+    "data": {
+      "image": "tabmwp_144.png",
+      "question_text": "Natalie buys 4.6 kilograms of turmeric. What is the total cost? (Unit: $)",
+      "ground_truth_answer": 13.8,
+      "source": "TabMWP"
+    }
+  }
+]

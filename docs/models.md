@@ -32,9 +32,9 @@ When `output_type` is provided, models that support structured output (JSON sche
 Uses the OpenAI Python SDK with any OpenAI-compatible endpoint. Works with:
 - OpenAI API (`https://api.openai.com/v1`)
 - Azure OpenAI (`https://<resource>.openai.azure.com/openai/v1/`)
-- Local vLLM servers (`http://0.0.0.0:8000/v1`)
-- Local llama.cpp `llama-server` (`http://0.0.0.0:8000/v1`) — used by the test
-  suite with SmolVLM-500M; see README "Running tests"
+- Local vLLM servers (`http://0.0.0.0:8010/v1`) — used by the test suite with
+  Qwen2.5-VL-3B-Instruct; see [test.md](test.md)
+- Local llama.cpp `llama-server` (`http://0.0.0.0:8000/v1`)
 - OpenRouter (`https://openrouter.ai/api/v1`)
 - LM Studio and similar
 

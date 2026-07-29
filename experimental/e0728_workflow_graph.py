@@ -1,10 +1,11 @@
 """Render the AgentFlow example pipeline (elementary-math workflow) as a graphviz figure.
 
-Illustrates the 5-step workflow from the README's "Elementary Math Problems"
-example: 4 inference steps take a photo of a math question through captioning,
-calculation, and answering (with the calculator stage outsourcing arithmetic),
-and a final evaluation step compares the answer against ground truth to produce
-a binary verdict.
+Illustrates the 4-step workflow from the README's "Elementary Math Problems"
+example, as implemented in examples/elementary_math/: 3 inference steps take a
+question figure plus its text through calculation planning, exact evaluation by
+a calculator, and answering; a final evaluation step compares the answer against
+ground truth to produce a binary verdict. Steps 2 and 4 are deterministic
+processors — only steps 1 and 3 call a model.
 
 Usage:
     # graphviz (dot binary) + python-graphviz must be installed in the conda env
@@ -23,25 +24,31 @@ OUT_NAME = Path(__file__).with_suffix("").name  # e0728_workflow_graph
 # (name, label, kind) — kind drives styling: "input" data, "artifact" produced
 # by an inference stage, "output" final inference answer, "eval" evaluation output.
 NODES = [
-    ("Image", "Image\n(photo of question)", "input"),
-    ("QuestionText", "QuestionText", "artifact"),
+    ("Image", "Image\n(question figure)", "input"),
+    ("QuestionText", "QuestionText", "input"),
     ("Calculations", "Calculations", "artifact"),
-    ("CalculatedNumbers", "CalculatedNumbers", "artifact"),
+    ("CalculatedNumbers", "CalculatedNumbers\n(calculator)", "artifact"),
     ("Answer", "Answer\n(float)", "output"),
     ("GroundTruthAnswer", "GroundTruthAnswer", "input"),
-    ("Verdict", "Verdict", "eval"),
+    ("Verdict", "Verdict\n(exact comparison)", "eval"),
 ]
+
+# Stages produced by a deterministic processor rather than a model call. Drawn
+# with a dashed border, since "does this step call an LLM?" is the distinction
+# the workflow is built around.
+DETERMINISTIC = {"CalculatedNumbers", "Verdict"}
 
 # (src, dst, step-label)
 EDGES = [
-    ("Image", "QuestionText", "Step 1"),
-    ("QuestionText", "Calculations", "Step 2"),
-    ("Calculations", "CalculatedNumbers", "Step 3"),
-    ("QuestionText", "Answer", "Step 4"),
-    ("Calculations", "Answer", "Step 4"),
-    ("CalculatedNumbers", "Answer", "Step 4"),
-    ("Answer", "Verdict", "Step 5"),
-    ("GroundTruthAnswer", "Verdict", "Step 5"),
+    ("Image", "Calculations", "Step 1"),
+    ("QuestionText", "Calculations", "Step 1"),
+    ("Calculations", "CalculatedNumbers", "Step 2"),
+    ("Image", "Answer", "Step 3"),
+    ("QuestionText", "Answer", "Step 3"),
+    ("Calculations", "Answer", "Step 3"),
+    ("CalculatedNumbers", "Answer", "Step 3"),
+    ("Answer", "Verdict", "Step 4"),
+    ("GroundTruthAnswer", "Verdict", "Step 4"),
 ]
 
 STYLE = {
@@ -55,12 +62,16 @@ STYLE = {
 def build() -> graphviz.Digraph:
     g = graphviz.Digraph("agentflow_math_workflow", format="svg")
     g.attr(rankdir="LR", fontname="Helvetica", labelloc="t",
-            label="AgentFlow — Elementary Math Workflow (inference: steps 1-4, evaluation: step 5)")
+            label="AgentFlow — Elementary Math Workflow (inference: steps 1-3, evaluation: step 4)\n"
+                  "solid = LLM stage, dashed = deterministic processor")
     g.attr("node", fontname="Helvetica", penwidth="1.5")
     g.attr("edge", fontname="Helvetica", fontsize="10", color="#616161")
 
     for name, label, kind in NODES:
-        g.node(name, label, **STYLE[kind])
+        style = dict(STYLE[kind])
+        if name in DETERMINISTIC:
+            style["style"] += ",dashed"
+        g.node(name, label, **style)
     for src, dst, step in EDGES:
         g.edge(src, dst, label=step)
     return g
