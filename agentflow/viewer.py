@@ -5,13 +5,26 @@ Usage:
 """
 import argparse
 import json
+import sys
 from pathlib import Path
 
-import streamlit as st
-import yaml
+# `streamlit run agentflow/viewer.py` puts *this file's* directory on sys.path
+# rather than the repo root. That breaks the app two ways: `import agentflow`
+# finds nothing, and `agentflow/typing/` shadows the standard library's `typing`
+# for every later import (streamlit's own included). Swap that entry for the
+# repo root before importing anything else, so the documented command works from
+# a plain checkout.
+_HERE = Path(__file__).resolve().parent
+_REPO_ROOT = _HERE.parent
+sys.path[:] = [p for p in sys.path if p and Path(p).resolve() != _HERE]
+if str(_REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(_REPO_ROOT))
 
-from agentflow.typing.config import Config
-from agentflow.util import camel_to_snake
+import streamlit as st  # noqa: E402
+import yaml  # noqa: E402
+
+from agentflow.typing.config import Config  # noqa: E402
+from agentflow.util import camel_to_snake  # noqa: E402
 
 
 def _parse_args() -> tuple[Path, Path]:
@@ -22,7 +35,7 @@ def _parse_args() -> tuple[Path, Path]:
     return args.configs_dir, args.output_dir
 
 
-def _select_config(configs_dir: Path) -> Config:
+def _select_config(configs_dir: Path) -> tuple[Config, Path]:
     yaml_files = sorted(configs_dir.glob("*.yaml")) + sorted(configs_dir.glob("*.yml"))
     if not yaml_files:
         st.error(f"No YAML config files found in {configs_dir}")
@@ -35,17 +48,26 @@ def _select_config(configs_dir: Path) -> Config:
         selected = st.selectbox("Config", names, key="config_select")
         config_path = configs_dir / selected
 
-    return Config.model_validate(yaml.safe_load(config_path.read_text(encoding="utf-8")))
+    cfg = Config.model_validate(yaml.safe_load(config_path.read_text(encoding="utf-8")))
+    return cfg, config_path
 
 
 def main():
     st.set_page_config(layout="wide", page_title="AgentFlow Viewer")
     configs_dir, output_root = _parse_args()
 
-    cfg = _select_config(configs_dir)
+    cfg, config_path = _select_config(configs_dir)
 
-    loader_source = Path(cfg.loader.source)
-    image_dir = Path((cfg.loader.kwargs or {})["image_dir"])
+    # Example projects write data paths relative to the project dir (the parent
+    # of configs/), so resolve them against it rather than against the cwd.
+    project_dir = config_path.resolve().parent.parent
+
+    def _resolve(path: "str | Path") -> Path:
+        path = Path(path)
+        return path if path.is_absolute() else project_dir / path
+
+    loader_source = _resolve(cfg.loader.source)
+    image_dir = _resolve((cfg.loader.kwargs or {})["image_dir"])
 
     stages = [
         {
@@ -65,38 +87,40 @@ def main():
     item_ids = [item["id"] for item in items]
     item_data = {item["id"]: item["data"] for item in items}
 
-    # --- Stage selector ---
+    # --- Pickers: example on the left, stage on the right ---
     stage_names = [s["name"] for s in stages]
-    stage_name = st.selectbox("Stage", stage_names)
-    stage = next(s for s in stages if s["name"] == stage_name)
-    stage_output_dir = output_root / cfg.name / stage_name
+    col_item, col_stage = st.columns(2)
 
+    with col_item:
+        idx = st.number_input(
+            "Example",
+            min_value=0,
+            max_value=len(item_ids) - 1,
+            value=0,
+            step=1,
+            key="item_idx",
+        )
+        item_id = item_ids[idx]
+        st.caption(f"`{item_id}` · {idx + 1} of {len(item_ids)}")
+
+    with col_stage:
+        stage_idx = st.number_input(
+            "Stage",
+            min_value=0,
+            max_value=len(stage_names) - 1,
+            value=0,
+            step=1,
+            key="stage_idx",
+        )
+        stage = stages[stage_idx]
+        stage_name = stage["name"]
+        st.caption(f"`{stage_name}` · {stage_idx + 1} of {len(stage_names)}")
+
+    stage_output_dir = output_root / cfg.name / stage_name
     n_done = sum(
         1 for iid in item_ids if (stage_output_dir / iid / "output.json").exists()
     )
-    st.caption(f"{len(item_ids)} items · {n_done} with output")
-
-    # --- Item navigator ---
-    col_prev, col_idx, col_next = st.columns([1, 8, 1])
-    if "item_idx" not in st.session_state:
-        st.session_state.item_idx = 0
-
-    with col_prev:
-        st.write("")
-        if st.button("◀", use_container_width=True):
-            st.session_state.item_idx = max(0, st.session_state.item_idx - 1)
-
-    with col_next:
-        st.write("")
-        if st.button("▶", use_container_width=True):
-            st.session_state.item_idx = min(len(item_ids) - 1, st.session_state.item_idx + 1)
-
-    with col_idx:
-        idx = st.slider("Item", 0, len(item_ids) - 1, st.session_state.item_idx, label_visibility="collapsed")
-        st.session_state.item_idx = idx
-
-    item_id = item_ids[idx]
-    st.caption(f"ID: `{item_id}`")
+    st.caption(f"{len(item_ids)} items · {n_done} with output at this stage")
     st.divider()
 
     # --- Two-column display ---
@@ -125,7 +149,7 @@ def main():
                 else:
                     st.text(str(val))
             else:
-                cache_file = output_root / input_type / item_id / "output.json"
+                cache_file = output_root / cfg.name / input_type / item_id / "output.json"
                 if cache_file.exists():
                     st.json(json.loads(cache_file.read_text(encoding="utf-8")), expanded=True)
                 else:
