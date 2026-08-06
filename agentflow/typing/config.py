@@ -12,7 +12,7 @@ class ModelConfig(BaseModel):
     token: str = ""
     model_id: str
 
-    @field_validator("token", mode="before")
+    @field_validator("token", "base_url", mode="before")
     @classmethod
     def _expand_env_vars(cls, v: str) -> str:
         return re.sub(r"\$\{([^}]+)\}", lambda m: os.environ.get(m.group(1), ""), v)
@@ -31,7 +31,10 @@ class DemoPoolConfig(BaseModel):
 
 class DemoConfig(BaseModel):
     pool: str                        # key into Config.demo_pools
-    select: DemoSelect = DemoSelect.RANDOM
+    # A built-in strategy, or the name of one registered via
+    # DemoPool.register_strategy(). Unknown names fail when demos are first
+    # requested, not at config load, since registration happens in user code.
+    select: DemoSelect | str = DemoSelect.RANDOM
     shots: int = 4
 
 
@@ -81,6 +84,9 @@ class Config(BaseModel):
     include: list[str] | None = None
     include_first: int | None = None
     wandb_enabled: bool = True
+    # wandb project to log under; defaults to the pipeline name. Set this to group
+    # many pipelines (one per experiment) under a single project.
+    wandb_project: str | None = None
     use_new_logging: bool = False
     # use_cache: bool = True
     n_parallel: int = 1

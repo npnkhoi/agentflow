@@ -5,6 +5,7 @@ Pipelines are configured in YAML (or JSON). The top-level structure:
 ```yaml
 name: <str>               # pipeline name; also the output directory name
 wandb_enabled: <bool>     # default: true
+wandb_project: <str>      # optional: project to log under; default: the pipeline name
 n_parallel: <int>         # number of parallel workers; default: 1
 loader:   <LoaderConfig>
 models:   <dict[str, ModelConfig]>
@@ -49,6 +50,20 @@ models:
 | `gemini` | Google Gemini         | `token` is the Gemini API key              |
 
 Models are lazy-initialized — the connection is only opened on the first call.
+
+`base_url` and `token` both expand `${VAR}` from the environment, so endpoints and
+keys that differ per machine stay out of the config file:
+
+```yaml
+models:
+  local_vlm:
+    cls: openai
+    base_url: "${LOCAL_VLM_URL}"
+    token: "-"
+    model_id: Qwen/Qwen2.5-VL-7B-Instruct
+```
+
+An unset variable expands to the empty string.
 
 ---
 

@@ -34,7 +34,7 @@ stages:
 | Field | Type | Description |
 |---|---|---|
 | `pool` | `str` | Key into `demo_pools` |
-| `select` | `"random"` \| `"similar"` | Selection strategy |
+| `select` | `"random"` \| `"similar"` \| `"diverse"` \| a registered name | Selection strategy |
 | `shots` | `int` | Number of demos to select (default: 4) |
 
 ## Selection strategies
@@ -48,6 +48,31 @@ The pool may overlap with the test set — self-exclusion is always applied so a
 ### `similar`
 
 Picks the `shots` items whose images are most similar to the current item, as measured by CLIP cosine similarity. Requires `transformers`, `torch`, and `Pillow`. Embeddings are computed once at `DemoPool` construction and cached in memory.
+
+### `diverse`
+
+Picks a spread-out subset of the pool by greedy furthest-first traversal over CLIP image embeddings: each round takes the item whose greatest similarity to anything already picked is smallest. Same requirements as `similar`.
+
+The query item plays no part, so every item gets the same demos — the selection is computed once at `DemoPool` construction.
+
+### Custom strategies
+
+Selection that depends on domain knowledge — "the items with the longest annotation", "one demo per label" — is registered by the application:
+
+```python
+from agentflow.demo import DemoPool
+
+def longest(pool: DemoPool, inputs: dict) -> list[dict]:
+    ranked = sorted(
+        pool.item_ids,
+        key=lambda i: -len(pool.loader.load(i)["interpretation"]["essay"]),
+    )
+    return pool.items_from_ids(ranked[: pool.config.shots])
+
+DemoPool.register_strategy("longest", longest)
+```
+
+Then set `select: longest` on the stage. A handler receives the pool and the current item's `inputs` dict, and returns the demo items to show. `DemoPool` exposes `config`, `loader`, `item_ids`, and `items_from_ids()` for this purpose. An unregistered `select` value raises `NotImplementedError` when demos are first requested.
 
 ## Demo data format
 

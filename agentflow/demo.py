@@ -1,4 +1,5 @@
 from pathlib import Path
+from typing import Callable
 from agentflow.typing.config import DemoConfig, DemoPoolConfig
 from agentflow.const import DemoSelect
 from agentflow.loaders import DataItemLoader
@@ -11,7 +12,22 @@ class DemoPool:
 
     The pool may overlap with the test set; self-exclusion is always applied so an
     item is never selected as its own demo.
+
+    Built-in selection strategies are `random`, `similar`, and `diverse`. Strategies
+    that need domain knowledge (e.g. "the items with the longest annotation") are
+    supplied by the application:
+
+        DemoPool.register_strategy("longest", my_handler)
+
+    where ``my_handler(pool: DemoPool, inputs: dict) -> list[dict]``.
     """
+
+    _strategies: dict[str, Callable[["DemoPool", dict], list[dict]]] = {}
+
+    @classmethod
+    def register_strategy(cls, name: str, handler: Callable[["DemoPool", dict], list[dict]]) -> None:
+        """Register a demo-selection strategy under the name used in `demo.select`."""
+        cls._strategies[name] = handler
 
     def __init__(self, config: DemoConfig, pool_config: DemoPoolConfig):
         self._config = config
@@ -22,8 +38,29 @@ class DemoPool:
                 f"Pool size {len(self._item_ids)} is not enough for shots={config.shots}."
             )
 
-        if self._config.select == DemoSelect.SIMILAR:
+        if self._config.select in (DemoSelect.SIMILAR, DemoSelect.DIVERSE):
             self._calc_embeddings()
+        # `diverse` ignores the query item, so the selection is made once here
+        # rather than per item.
+        self._fixed_demos: list[dict] | None = (
+            self._calc_diverse() if self._config.select == DemoSelect.DIVERSE else None
+        )
+
+    @property
+    def config(self) -> DemoConfig:
+        return self._config
+
+    @property
+    def loader(self) -> DataItemLoader:
+        return self._loader
+
+    @property
+    def item_ids(self) -> list[str]:
+        return list(self._item_ids)
+
+    def items_from_ids(self, ids: list[str]) -> list[dict]:
+        """Public accessor used by registered strategies."""
+        return self._items_from_ids(ids)
 
     def _items_from_ids(self, ids: list[str]) -> list[dict]:
         return [self._loader.load(item_id) for item_id in ids]
@@ -72,10 +109,49 @@ class DemoPool:
         ids = [k for k, _ in sorted(dists.items(), key=lambda x: x[1], reverse=True)][: self._config.shots]
         return self._items_from_ids(ids)
 
+    def _calc_diverse(self) -> list[dict]:
+        """Pick a spread-out subset of the pool by greedy furthest-first traversal
+        over CLIP image embeddings.
+
+        Each round takes the item whose greatest similarity to anything already
+        picked is smallest — i.e. the item least like the current selection. The
+        query item plays no part, so the same demos serve every item.
+        """
+        import torch.nn.functional as F
+        from tqdm import tqdm
+
+        remaining = list(self._item_ids)
+        # Similarity of each remaining item to the closest already-selected item.
+        # -inf until something is selected, which makes the first pick arbitrary.
+        closest_sim: dict[str, float] = {item_id: -float("inf") for item_id in remaining}
+        selected: list[str] = []
+
+        for _ in tqdm(range(self._config.shots), desc="Selecting diverse demos"):
+            pick = min(closest_sim, key=lambda k: closest_sim[k])
+            remaining.remove(pick)
+            closest_sim.pop(pick)
+            selected.append(pick)
+            for item_id in remaining:
+                sim = F.cosine_similarity(
+                    self._embeddings[item_id], self._embeddings[pick], dim=-1
+                ).item()
+                closest_sim[item_id] = max(closest_sim[item_id], sim)
+
+        return self._items_from_ids(selected)
+
     def demos(self, inputs: dict) -> list[dict]:
-        if self._config.select == DemoSelect.RANDOM:
+        select = self._config.select
+        if select == DemoSelect.RANDOM:
             return self._random(inputs["id"])
-        elif self._config.select == DemoSelect.SIMILAR:
+        elif select == DemoSelect.SIMILAR:
             return self._similar(inputs["id"], inputs["image"])
+        elif select == DemoSelect.DIVERSE:
+            assert self._fixed_demos is not None
+            return self._fixed_demos
+        elif str(getattr(select, "value", select)) in self._strategies:
+            return self._strategies[str(getattr(select, "value", select))](self, inputs)
         else:
-            raise NotImplementedError(f"Demo select '{self._config.select}' not implemented")
+            raise NotImplementedError(
+                f"Demo select '{select}' is not implemented and not registered. "
+                f"Call DemoPool.register_strategy('{select}', handler) before use."
+            )

@@ -35,6 +35,15 @@ class LLMProcessor(Processor):
         user_prompt = self.input_formater.format(inputs)
         return (image_path, user_prompt)
 
+    def _demo_output(self, demo: dict, output_name: str):
+        """The expected output to show for one demo item, or None to skip it.
+
+        Override in a subclass when the demo pool stores the target in some other
+        form than the stage's output field — e.g. a pool annotated with a general
+        structure from which this stage's specific output can be derived.
+        """
+        return demo.get(output_name)
+
     def __call__(self, inputs: dict, logger=None, output_dir: Path | None = None) -> BaseModel | None:
         for input_name in self._input_names_snake:
             if input_name == "image":
@@ -57,7 +66,7 @@ class LLMProcessor(Processor):
             llm_examples = []
             output_name = camel_to_snake(self._stage_config.output)
             for demo in demos:
-                demo_output = demo.get(output_name)
+                demo_output = self._demo_output(demo, output_name)
                 if demo_output is None:
                     continue
                 if isinstance(demo_output, BaseModel):

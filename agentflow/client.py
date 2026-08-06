@@ -42,7 +42,11 @@ class Client:
                 cfg.wandb_enabled = False
             else:
                 try:
-                    wandb.init(project=cfg.name, config=cfg.model_dump(), name=cfg.name)
+                    wandb.init(
+                        project=cfg.wandb_project or cfg.name,
+                        config=cfg.model_dump(),
+                        name=cfg.name,
+                    )
                 except Exception as e:
                     print(
                         f"wandb initialization failed ({e}); continuing with wandb disabled"

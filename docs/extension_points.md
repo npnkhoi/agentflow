@@ -90,6 +90,43 @@ Built-in processors (`LLMProcessor`, `CopyProcessor`) are pre-registered in `age
 
 ---
 
+## Demo selection strategies
+
+Register a selection strategy that needs domain knowledge, then name it in `demo.select`.
+
+```python
+from agentflow.demo import DemoPool
+
+def longest(pool: DemoPool, inputs: dict) -> list[dict]:
+    ranked = sorted(pool.item_ids, key=lambda i: -len(pool.loader.load(i)["essay"]))
+    return pool.items_from_ids(ranked[: pool.config.shots])
+
+DemoPool.register_strategy("longest", longest)
+```
+
+`random`, `similar`, and `diverse` are built in. See [demos.md](demos.md).
+
+---
+
+## Demo output derivation
+
+`LLMProcessor` shows each demo the value stored under the stage's output field. When
+the pool stores the target in another form, override `_demo_output` in a subclass:
+
+```python
+class MyLLMProcessor(LLMProcessor):
+    def _demo_output(self, demo: dict, output_name: str):
+        # Pool items carry a general `graph`; this stage wants one projection of it.
+        value = demo.get(output_name)
+        return value if value is not None else derive(demo.get("graph"))
+
+Pipeline.register_processor("LLMProcessor", MyLLMProcessor)
+```
+
+Returning `None` skips that demo.
+
+---
+
 ## Summary
 
 | Extension point | Registration API |
@@ -98,6 +135,8 @@ Built-in processors (`LLMProcessor`, `CopyProcessor`) are pre-registered in `age
 | Input format | `agentflow.input_formater.InputFormater.register(name, fn)` |
 | Model backend | `agentflow.pipeline.Pipeline.register_model_backend(name, cls)` |
 | Processor | `Pipeline.register_processor(name, cls)` |
+| Demo strategy | `agentflow.demo.DemoPool.register_strategy(name, fn)` |
+| Demo output derivation | subclass `LLMProcessor._demo_output` |
 
 > **Loader:** `DataItemLoader` is the only built-in loader. It accepts any `data` dict structure, so non-standard sources are best handled by a preprocessing step that converts them to the standard JSON format (`[{"id": str, "data": {...}}, ...]`) rather than by swapping the loader.
 
