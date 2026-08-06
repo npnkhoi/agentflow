@@ -8,6 +8,12 @@ class AnnotationSource(str, Enum):
 
 
 class DemoSelect(str, Enum):
+    """Built-in demo selection strategies.
+
+    Not a closed set: `DemoConfig.select` also accepts any name passed to
+    DemoPool.register_strategy(). See agentflow/demo.py.
+    """
+
     RANDOM = "random"
     SIMILAR = "similar"
-    DIVERSE = "diverse" # not implemented yet
+    DIVERSE = "diverse"
