@@ -26,6 +26,7 @@ import yaml  # noqa: E402
 
 from agentflow.typing.config import Config  # noqa: E402
 from agentflow.util import camel_to_snake  # noqa: E402
+from agentflow.viewer_images import resolve_image, show_image, show_value  # noqa: E402
 
 
 def _parse_args() -> tuple[Path, Path, Path | None]:
@@ -77,6 +78,7 @@ def main():
 
     loader_source = _resolve(cfg.loader.source)
     image_dir = _resolve((cfg.loader.kwargs or {}).get("image_dir", "."))
+    image_roots = [image_dir, project_dir, Path.cwd()]
 
     stages = [
         {
@@ -148,19 +150,18 @@ def main():
                 if val is None:
                     st.warning("Not found in loader data.")
                 elif input_type == "Image":
-                    img_path = image_dir / Path(str(val)).name
-                    if img_path.exists():
-                        st.image(str(img_path), use_container_width=True)
+                    img_path = resolve_image(str(val), image_roots, explicit=True)
+                    if img_path is not None:
+                        show_image(img_path, input_type)
                     else:
                         st.text(str(val))
-                elif isinstance(val, (dict, list)):
-                    st.json(val, expanded=True)
                 else:
-                    st.text(str(val))
+                    show_value(val, image_roots, input_type)
             else:
                 cache_file = output_root / cfg.name / input_type / item_id / "output.json"
                 if cache_file.exists():
-                    st.json(json.loads(cache_file.read_text(encoding="utf-8")), expanded=True)
+                    show_value(json.loads(cache_file.read_text(encoding="utf-8")),
+                               [cache_file.parent, *image_roots], input_type)
                 else:
                     st.warning(f"Stage output not found: {cache_file}")
 
@@ -168,7 +169,8 @@ def main():
         st.subheader(f"Output: {stage_name}")
         output_file = stage_output_dir / item_id / "output.json"
         if output_file.exists():
-            st.json(json.loads(output_file.read_text(encoding="utf-8")), expanded=True)
+            show_value(json.loads(output_file.read_text(encoding="utf-8")),
+                       [output_file.parent, *image_roots], stage_name)
         else:
             st.warning("Not executed, failed, or cached from a previous run.")
             st.warning(output_file)
