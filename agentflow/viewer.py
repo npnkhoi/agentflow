@@ -1,6 +1,7 @@
 """Streamlit app for browsing agentflow pipeline outputs.
 
 Usage:
+    agentflow view [configs_dir_or_file] [output_dir]
     streamlit run agentflow/viewer.py -- <configs_dir> <output_dir>
 """
 import argparse
@@ -27,16 +28,18 @@ from agentflow.typing.config import Config  # noqa: E402
 from agentflow.util import camel_to_snake  # noqa: E402
 
 
-def _parse_args() -> tuple[Path, Path]:
+def _parse_args() -> tuple[Path, Path, Path | None]:
     parser = argparse.ArgumentParser(description="Browse agentflow pipeline outputs.")
-    parser.add_argument("configs_dir", type=Path, help="Directory containing YAML config files")
+    parser.add_argument("configs_dir", type=Path, help="YAML config file or directory containing config files")
     parser.add_argument("output_dir", type=Path, help="Pipeline output root directory")
+    parser.add_argument("--project-dir", type=Path, help="Base directory for relative loader and image paths")
     args = parser.parse_args()
-    return args.configs_dir, args.output_dir
+    return args.configs_dir, args.output_dir, args.project_dir
 
 
 def _select_config(configs_dir: Path) -> tuple[Config, Path]:
-    yaml_files = sorted(configs_dir.glob("*.yaml")) + sorted(configs_dir.glob("*.yml"))
+    yaml_files = ([configs_dir] if configs_dir.is_file() else
+                  sorted(configs_dir.glob("*.yaml")) + sorted(configs_dir.glob("*.yml")))
     if not yaml_files:
         st.error(f"No YAML config files found in {configs_dir}")
         st.stop()
@@ -46,7 +49,7 @@ def _select_config(configs_dir: Path) -> tuple[Config, Path]:
     else:
         names = [f.name for f in yaml_files]
         selected = st.selectbox("Config", names, key="config_select")
-        config_path = configs_dir / selected
+        config_path = yaml_files[names.index(selected)]
 
     cfg = Config.model_validate(yaml.safe_load(config_path.read_text(encoding="utf-8")))
     return cfg, config_path
@@ -54,20 +57,26 @@ def _select_config(configs_dir: Path) -> tuple[Config, Path]:
 
 def main():
     st.set_page_config(layout="wide", page_title="AgentFlow Viewer")
-    configs_dir, output_root = _parse_args()
+    configs_dir, output_root, explicit_project_dir = _parse_args()
 
     cfg, config_path = _select_config(configs_dir)
 
     # Example projects write data paths relative to the project dir (the parent
     # of configs/), so resolve them against it rather than against the cwd.
     project_dir = config_path.resolve().parent.parent
+    if explicit_project_dir is not None:
+        project_dir = explicit_project_dir.resolve()
+    elif not cfg.loader.source.is_absolute() and not (project_dir / cfg.loader.source).exists():
+        # Nested/symlinked configs often use paths relative to the launch directory.
+        if (Path.cwd() / cfg.loader.source).exists():
+            project_dir = Path.cwd()
 
     def _resolve(path: "str | Path") -> Path:
         path = Path(path)
         return path if path.is_absolute() else project_dir / path
 
     loader_source = _resolve(cfg.loader.source)
-    image_dir = _resolve((cfg.loader.kwargs or {})["image_dir"])
+    image_dir = _resolve((cfg.loader.kwargs or {}).get("image_dir", "."))
 
     stages = [
         {
