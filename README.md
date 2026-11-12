@@ -248,23 +248,32 @@ A Streamlit app browses a pipeline's results stage by stage — the input image,
 each stage's inputs beside its output, and the run log when a stage failed:
 
 ```bash
-streamlit run agentflow/viewer.py -- <configs_dir> <output_dir>
+agentflow view  # defaults to configs/ and output/ in the current directory
 
 # e.g. the elementary-math example, from the repo root
-streamlit run agentflow/viewer.py -- examples/elementary_math/configs output
+agentflow view examples/elementary_math/configs output
 ```
 
 It picks up any config in `<configs_dir>` and reads whatever has already been
 written to `<output_dir>`, so it can be left open while a pipeline runs.
+
+The command works from an installed package without locating `viewer.py`. You
+can also pass a single YAML file instead of a config directory. Relative loader
+and image paths use the project directory next to `configs/`; if the loader file
+is absent there, the viewer tries the current working directory. This supports
+nested config directories and symlinks to configs that use repository-relative
+paths. Use `--project-dir PATH` to choose the base directory explicitly.
+
+The original `streamlit run agentflow/viewer.py -- <configs_dir> <output_dir>`
+entry point remains supported. The CLI binds to localhost by default;
+`agentflow view --host ADDRESS --port PORT` changes the bind address and port.
 
 To view the app from another machine — a laptop, when the pipeline runs on a
 remote GPU box — put a [Cloudflare quick tunnel](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/do-more-with-tunnels/trycloudflare/)
 in front of it. Start the viewer bound to localhost:
 
 ```bash
-streamlit run agentflow/viewer.py \
-  --server.port 8501 --server.headless true --server.address 127.0.0.1 \
-  -- examples/elementary_math/configs output
+agentflow view examples/elementary_math/configs output --headless
 ```
 
 Then, in a second terminal:
