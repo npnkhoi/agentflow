@@ -1,4 +1,4 @@
-from pydantic import BaseModel, model_validator, field_validator
+from pydantic import BaseModel, Field, model_validator, field_validator
 from pathlib import Path
 from typing import Any, Union
 from enum import Enum
@@ -11,6 +11,7 @@ class ModelConfig(BaseModel):
     base_url: str
     token: str = ""
     model_id: str
+    generation_kwargs: dict[str, Any] = Field(default_factory=dict)
 
     @field_validator("token", mode="before")
     @classmethod

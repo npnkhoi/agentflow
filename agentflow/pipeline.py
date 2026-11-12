@@ -124,6 +124,7 @@ class Pipeline:
                 base_url=mcfg.base_url,
                 token=mcfg.token,
                 model_id=mcfg.model_id,
+                **({"generation_kwargs": mcfg.generation_kwargs} if mcfg.generation_kwargs else {}),
             )
             for name, mcfg in cfg.models.items()
         }

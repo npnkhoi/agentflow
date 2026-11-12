@@ -51,6 +51,34 @@ For local servers with no auth, use `token: "-"` and set `base_url` to the local
 
 Structured output is requested via `response_format` with a JSON schema.
 
+Set per-model OpenAI SDK request options with `generation_kwargs`:
+
+```yaml
+models:
+  gemma:
+    cls: openai
+    base_url: "http://localhost:8000/v1"
+    token: "-"
+    model_id: google/gemma-4-31B-it
+    generation_kwargs:
+      temperature: 0
+      max_completion_tokens: 2500
+      extra_body:
+        chat_template_kwargs:
+          enable_thinking: false
+```
+
+`extra_body` supports provider-specific parameters such as vLLM's thinking
+control; the serving model must support them. Options are passed unchanged to
+`chat.completions.create`. An omitted temperature or thinking option follows the
+server's default. The default completion-token cap remains 4096 unless overridden.
+`model`, `messages`, and `response_format` are managed by AgentFlow and cannot be
+overridden here.
+
+This option is implemented by `OpenAILLM`. Custom backends can opt in by accepting
+a `generation_kwargs` constructor argument. When no options are configured,
+existing backends receive the original three constructor arguments unchanged.
+
 ### GeminiVLM
 
 Uses `google-genai` for Google Gemini models. Includes:

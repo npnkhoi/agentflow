@@ -6,6 +6,7 @@ import pydantic_core
 from pydantic import BaseModel
 from dotenv import load_dotenv
 import base64
+from copy import deepcopy
 
 load_dotenv()
 
@@ -53,6 +54,13 @@ class BaseLLM:
 
 
 class OpenAILLM(BaseLLM):
+    def __init__(self, base_url: str, token: str, model_id: str, generation_kwargs: dict | None = None):
+        super().__init__(base_url, token, model_id)
+        self._generation_kwargs = deepcopy(generation_kwargs or {})
+        reserved = {"model", "messages", "response_format"} & self._generation_kwargs.keys()
+        if reserved:
+            raise ValueError(f"generation_kwargs cannot override pipeline-managed fields: {sorted(reserved)}")
+
     def _do_init(self) -> None:
         self._client = OpenAI(base_url=self._base_url, api_key=self._token)
 
@@ -89,7 +97,8 @@ class OpenAILLM(BaseLLM):
         user_input.append({"type": "text", "text": input_text})
         messages.append({"role": "user", "content": user_input})
 
-        create_kwargs: dict = dict(messages=messages, model=self._model_id, max_completion_tokens=4096)
+        create_kwargs: dict = {"max_completion_tokens": 4096, **deepcopy(self._generation_kwargs)}
+        create_kwargs.update(messages=messages, model=self._model_id)
         if output_type is not None:
             create_kwargs["response_format"] = {
                 "type": "json_schema",
