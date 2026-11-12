@@ -33,6 +33,11 @@ The data file must be a JSON array of `{"id": str, "data": {...}}` objects. The 
 
 ## ModelConfig
 
+`generation_kwargs` optionally forwards request options to the OpenAI backend,
+including `temperature` and provider-specific thinking controls through
+`extra_body`. It defaults to an empty mapping. See [models.md](models.md) for a
+vLLM/Gemma example and the reserved pipeline-managed fields.
+
 ```yaml
 models:
   my_model:
