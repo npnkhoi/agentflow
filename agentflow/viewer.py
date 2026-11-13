@@ -60,7 +60,10 @@ def main():
     st.set_page_config(layout="wide", page_title="AgentFlow Viewer")
     configs_dir, output_root, explicit_project_dir = _parse_args()
 
-    cfg, config_path = _select_config(configs_dir)
+    title = st.empty()
+    col_item, col_stage = st.columns(2)
+    with col_item:
+        cfg, config_path = _select_config(configs_dir)
 
     # Example projects write data paths relative to the project dir (the parent
     # of configs/), so resolve them against it rather than against the cwd.
@@ -88,7 +91,7 @@ def main():
         for stage in cfg.stages
     ]
 
-    st.title(f"Pipeline: {cfg.name}")
+    title.title(f"Pipeline: {cfg.name}")
 
     if not loader_source.exists():
         st.error(f"Loader source not found: {loader_source}")
@@ -98,9 +101,8 @@ def main():
     item_ids = [item["id"] for item in items]
     item_data = {item["id"]: item["data"] for item in items}
 
-    # --- Pickers: example on the left, stage on the right ---
+    # Keep config and example controls together; expose every stage on the right.
     stage_names = [s["name"] for s in stages]
-    col_item, col_stage = st.columns(2)
 
     with col_item:
         idx = st.number_input(
@@ -115,17 +117,14 @@ def main():
         st.caption(f"`{item_id}` · {idx + 1} of {len(item_ids)}")
 
     with col_stage:
-        stage_idx = st.number_input(
+        stage_idx = st.radio(
             "Stage",
-            min_value=0,
-            max_value=len(stage_names) - 1,
-            value=0,
-            step=1,
+            options=range(len(stage_names)),
+            format_func=lambda index: f"{index + 1}. {stage_names[index]}",
             key="stage_idx",
         )
         stage = stages[stage_idx]
         stage_name = stage["name"]
-        st.caption(f"`{stage_name}` · {stage_idx + 1} of {len(stage_names)}")
 
     stage_output_dir = output_root / cfg.name / stage_name
     n_done = sum(

@@ -53,7 +53,7 @@ def test_absolute_paths_and_cache_relative_artifacts(tmp_path):
     assert resolve_image("a" * 5000 + ".png", [tmp_path]) is None
 
 
-def viewer_app(tmp_path, monkeypatch, bad_image=False, explicit_image=False):
+def viewer_app(tmp_path, monkeypatch, bad_image=False, explicit_image=False, multiple_configs=False):
     (tmp_path / "configs").mkdir()
     base = make_image(tmp_path / "images/base.png")
     first = make_image(tmp_path / "examples/first.png")
@@ -66,6 +66,9 @@ def viewer_app(tmp_path, monkeypatch, bad_image=False, explicit_image=False):
                           "output": "SelectedExamples", "processor": "CopyProcessor"},
                          {"inputs": [["SelectedExamples", "model"]], "output": "Prediction", "processor": "CopyProcessor"}]}
     (tmp_path / "configs/sample.yaml").write_text(yaml.safe_dump(config))
+    if multiple_configs:
+        short_config = {**config, "stages": config["stages"][:1]}
+        (tmp_path / "configs/short.yaml").write_text(yaml.safe_dump(short_config))
     selected = tmp_path / "output/sample/SelectedExamples/one"
     make_image(selected / "preview.png")
     payload = {"examples": [{"image": "preview.png", "meaning": "original output text"}]}
@@ -98,12 +101,28 @@ def test_viewer_shows_nested_human_inputs_and_outputs(tmp_path, monkeypatch):
 
 def test_viewer_shows_model_input_images_and_output_images(tmp_path, monkeypatch):
     app = viewer_app(tmp_path, monkeypatch)
-    app.number_input[1].set_value(1).run()
+    assert app.radio[0].options == ["1. SelectedExamples", "2. Prediction"]
+    app.radio[0].set_value(1).run()
     assert not app.exception
     assert not app.error
     assert image_captions(app) == ["SelectedExamples.examples[0].image", "Prediction.image"]
     assert "original output text" in app.json[0].value
     assert "final output text" in app.json[1].value
+
+
+def test_selectors_share_a_row_and_switching_configs_resets_stage(tmp_path, monkeypatch):
+    app = viewer_app(tmp_path, monkeypatch, multiple_configs=True)
+    assert not app.exception
+    left, right = app.columns[:2]
+    assert left.selectbox[0].label == "Config"
+    assert left.number_input[0].label == "Example"
+    assert right.radio[0].label == "Stage"
+    app.radio[0].set_value(1).run()
+    app.selectbox[0].select("short.yaml").run()
+    assert not app.exception
+    assert app.radio[0].options == ["1. SelectedExamples"]
+    assert app.radio[0].value == 0
+    assert app.subheader[-1].value == "Output: SelectedExamples"
 
 
 def test_viewer_keeps_explicit_image_inputs_working(tmp_path, monkeypatch):
