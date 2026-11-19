@@ -9,7 +9,8 @@ Tests are split into two suites:
   [../examples/](../examples/). Each test module targets one example project
   (`test_captioning.py` → `examples/captioning`, `test_counting.py` →
   `examples/counting`, `test_elementary_math.py` → `examples/elementary_math`,
-  `test_hosted_models.py` → hosted OpenAI/Gemini backends).
+  `test_hosted_models.py` → hosted OpenAI/Gemini backends,
+  `test_vllm_local.py` → in-process vLLM; needs vLLM and a GPU in the test env, skipped otherwise).
 
 Run them as modules from the repo root, so `agentflow` and `examples` import
 normally:

@@ -52,8 +52,14 @@ models:
 | `openai` | OpenAI-compatible API | Works with vLLM, LM Studio, OpenRouter, etc. |
 | `azure`  | Azure OpenAI          | Reads `AZURE_OPENAI_API_VERSION` from env  |
 | `gemini` | Google Gemini         | `token` is the Gemini API key              |
+| `vllm_local` | In-process vLLM    | No server or `base_url`; see `engine_args` below |
 
 Models are lazy-initialized — the connection is only opened on the first call.
+
+`base_url` is required for `openai` and ignored by `gemini` and `vllm_local`.
+`engine_args` (default empty) is only used by `vllm_local`, where it is passed
+to `vllm.LLM(...)`; that backend's `generation_kwargs` go to
+`vllm.SamplingParams(...)`. See [models.md](models.md#vllmlocalllm-cls-vllm_local).
 
 ---
 

@@ -12,7 +12,7 @@ Features:
 - Idempotency: never rerun inference on a finished stage or processed data item
 - Convenient prompt management in actual text files, enabling hill-climbing with prompts.
 - In-context learning support (configurable `num_shots`, `selection_strategy`, and `demo_pool`)
-- Variety of supported model providers
+- Variety of supported model providers, including in-process local models via vLLM (`cls: vllm_local`, no server to run)
 - Media-first design, starting with images
 
 How it works:
@@ -223,7 +223,7 @@ from agentflow.input_formater import InputFormater
 # How a stage's inputs are rendered into the user prompt (default: labelled JSON)
 InputFormater.register("my_format", my_format_handler)
 
-# A model provider beyond the built-in `openai` and `gemini` backends
+# A model provider beyond the built-in `openai`, `gemini` and `vllm_local` backends
 Pipeline.register_model_backend("my_provider", MyLLMClass)
 ```
 

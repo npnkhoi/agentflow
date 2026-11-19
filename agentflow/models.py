@@ -1,3 +1,4 @@
+import json
 import time
 import httpx
 from pathlib import Path
@@ -24,6 +25,37 @@ def image_path_to_base64(image_path: Path) -> str:
     with open(image_path, "rb") as f:
         base64_encoded = base64.b64encode(f.read()).decode("utf-8")
     return f"data:{mime_type};base64,{base64_encoded}"
+
+
+def build_chat_messages(
+    system_prompt: str,
+    image_path: Path | None,
+    examples: list[tuple[Path, str, str]],
+    input_text: str,
+) -> list[dict]:
+    """Build an OpenAI-style chat message list: system, few-shot demos, then the query.
+
+    Shared by ``OpenAILLM`` and ``VLLMLocalLLM``; images are inlined as base64 data URIs.
+    """
+    messages: list[dict] = [{"role": "system", "content": [{"type": "text", "text": system_prompt}]}]
+    for example_image_path, example_prompt, example_output in examples:
+        messages.append({
+            "role": "user",
+            "content": [
+                {"type": "image_url", "image_url": {"url": image_path_to_base64(example_image_path)}},
+                {"type": "text", "text": example_prompt},
+            ]
+        })
+        messages.append({
+            "role": "assistant",
+            "content": [{"type": "text", "text": example_output}]
+        })
+    user_input = []
+    if image_path:
+        user_input.append({"type": "image_url", "image_url": {"url": image_path_to_base64(image_path)}})
+    user_input.append({"type": "text", "text": input_text})
+    messages.append({"role": "user", "content": user_input})
+    return messages
 
 
 class BaseLLM:
@@ -74,28 +106,7 @@ class OpenAILLM(BaseLLM):
         logger=None,
     ) -> str:
         self._lazy_init()
-        messages = []
-        messages.append({
-            "role": "system",
-            "content": [{"type": "text", "text": system_prompt}]
-        })
-        for example_image_path, example_prompt, example_output in examples:
-            messages.append({
-                "role": "user",
-                "content": [
-                    {"type": "image_url", "image_url": {"url": image_path_to_base64(example_image_path)}},
-                    {"type": "text", "text": example_prompt},
-                ]
-            })
-            messages.append({
-                "role": "assistant",
-                "content": [{"type": "text", "text": example_output}]
-            })
-        user_input = []
-        if image_path:
-            user_input.append({"type": "image_url", "image_url": {"url": image_path_to_base64(image_path)}})
-        user_input.append({"type": "text", "text": input_text})
-        messages.append({"role": "user", "content": user_input})
+        messages = build_chat_messages(system_prompt, image_path, examples, input_text)
 
         create_kwargs: dict = {"max_completion_tokens": 4096, **deepcopy(self._generation_kwargs)}
         create_kwargs.update(messages=messages, model=self._model_id)
@@ -109,6 +120,90 @@ class OpenAILLM(BaseLLM):
             }
         chat_completion = self._client.chat.completions.create(**create_kwargs)
         content = str(chat_completion.choices[0].message.content)
+        print("OUTPUT:", content, file=logger, flush=True)
+        return content
+
+
+class VLLMLocalLLM(BaseLLM):
+    """Run a model in-process with vLLM's offline engine (``vllm.LLM``); no server needed.
+
+    The engine loads on the first ``generate()`` call and lives until the process
+    exits, so fully cached runs never touch the GPU. ``engine_args`` go to
+    ``vllm.LLM(...)`` (e.g. ``tensor_parallel_size``, ``max_model_len``, ``dtype``);
+    ``generation_kwargs`` go to ``vllm.SamplingParams(...)`` (e.g. ``temperature``,
+    ``max_tokens``), except ``chat_template_kwargs``, which goes to ``LLM.chat()``.
+    Requires vLLM installed in the same Python environment as agentflow.
+    """
+
+    _RESERVED_SAMPLING = {"structured_outputs", "guided_decoding"}
+    # One engine per (model_id, engine_args) per process: pipelines built repeatedly in one
+    # process (notebooks, sweeps), or several config entries for the same model with different
+    # generation_kwargs, reuse the loaded weights instead of loading a second copy onto the GPU.
+    _engines: dict[str, object] = {}
+
+    def __init__(
+        self,
+        base_url: str,
+        token: str,
+        model_id: str,
+        generation_kwargs: dict | None = None,
+        engine_args: dict | None = None,
+    ):
+        super().__init__(base_url, token, model_id)
+        self._generation_kwargs = deepcopy(generation_kwargs or {})
+        self._engine_args = deepcopy(engine_args or {})
+        reserved = self._RESERVED_SAMPLING & self._generation_kwargs.keys()
+        if reserved:
+            raise ValueError(f"generation_kwargs cannot override pipeline-managed fields: {sorted(reserved)}")
+        if "model" in self._engine_args:
+            raise ValueError("engine_args cannot set 'model'; use model_id instead")
+
+    def _do_init(self) -> None:
+        try:
+            from vllm import LLM
+        except ImportError as e:
+            raise ImportError(
+                "cls: vllm_local needs vLLM in the same Python environment as agentflow "
+                "(e.g. `pip install -e .` inside your vLLM env)"
+            ) from e
+        key = json.dumps([self._model_id, self._engine_args], sort_keys=True, default=str)
+        if key not in VLLMLocalLLM._engines:
+            VLLMLocalLLM._engines[key] = LLM(model=self._model_id, **self._engine_args)
+        self._llm = VLLMLocalLLM._engines[key]
+
+    @staticmethod
+    def _sampling_params(options: dict, output_type: type[BaseModel] | None):
+        from vllm import SamplingParams
+        options = {"max_tokens": 4096, **options}
+        if output_type is not None:
+            schema = output_type.model_json_schema()
+            try:
+                from vllm.sampling_params import StructuredOutputsParams
+                options["structured_outputs"] = StructuredOutputsParams(json=schema)
+            except ImportError:  # vLLM < 0.10.2 named this guided decoding
+                from vllm.sampling_params import GuidedDecodingParams
+                options["guided_decoding"] = GuidedDecodingParams(json=schema)
+        return SamplingParams(**options)
+
+    def generate(
+        self,
+        system_prompt: str,
+        image_path: Path | None,
+        examples: list[tuple[Path, str, str]],
+        input_text: str,
+        output_type: type[BaseModel] | None = None,
+        logger=None,
+    ) -> str | None:
+        self._lazy_init()
+        messages = build_chat_messages(system_prompt, image_path, examples, input_text)
+        options = deepcopy(self._generation_kwargs)
+        chat_template_kwargs = options.pop("chat_template_kwargs", None)
+        params = self._sampling_params(options, output_type)
+        outputs = self._llm.chat(messages, params, use_tqdm=False, chat_template_kwargs=chat_template_kwargs)
+        completion = outputs[0].outputs[0]
+        content = completion.text
+        if completion.finish_reason == "length":
+            print(f"WARNING: hit max_tokens ({params.max_tokens}); output is truncated", file=logger, flush=True)
         print("OUTPUT:", content, file=logger, flush=True)
         return content
 

@@ -125,6 +125,7 @@ class Pipeline:
                 token=mcfg.token,
                 model_id=mcfg.model_id,
                 **({"generation_kwargs": mcfg.generation_kwargs} if mcfg.generation_kwargs else {}),
+                **({"engine_args": mcfg.engine_args} if mcfg.engine_args else {}),
             )
             for name, mcfg in cfg.models.items()
         }

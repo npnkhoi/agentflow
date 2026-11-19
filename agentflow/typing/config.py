@@ -7,11 +7,18 @@ import re
 from agentflow.const import AnnotationSource, DemoSelect
 
 class ModelConfig(BaseModel):
-    cls: str = "openai"  # "openai" | "gemini"
-    base_url: str
+    cls: str = "openai"  # "openai" | "gemini" | "vllm_local"
+    base_url: str = ""   # required for "openai"; unused by "gemini" and "vllm_local"
     token: str = ""
     model_id: str
     generation_kwargs: dict[str, Any] = Field(default_factory=dict)
+    engine_args: dict[str, Any] = Field(default_factory=dict)  # vllm_local only: kwargs for vllm.LLM(...)
+
+    @model_validator(mode="after")
+    def _check_backend_fields(self) -> "ModelConfig":
+        if self.cls == "openai" and not self.base_url:
+            raise ValueError("cls 'openai' requires base_url")
+        return self
 
     @field_validator("token", mode="before")
     @classmethod
