@@ -1,0 +1,24 @@
+# Same as caption.yaml, but agentflow loads the model itself with vLLM's
+# in-process engine -- no separate `vllm serve` needed. Requires vLLM in the
+# same Python env as agentflow (see docs/models.md#vllmlocalllm).
+name: test_vllm_local_caption
+wandb_enabled: false
+loader:
+  source: data/items.json
+  kwargs:
+    image_dir: data/images
+models:
+  qwen:
+    cls: vllm_local
+    model_id: Qwen/Qwen2.5-VL-3B-Instruct
+    engine_args:            # passed to vllm.LLM(...)
+      max_model_len: 8192
+      gpu_memory_utilization: 0.85
+    generation_kwargs:      # passed to vllm.SamplingParams(...)
+      temperature: 0
+stages:
+  - inputs:
+      - [Image, human]
+    output: SampleOutput
+    processor: LLMProcessor
+    model: qwen
