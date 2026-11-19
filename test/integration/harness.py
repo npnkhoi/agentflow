@@ -34,11 +34,15 @@ EXAMPLES_DIR = REPO_ROOT / "examples"
 OUTPUT_DIR = Path("output")
 
 
-def resolved_config_path(project_dir: Path, config_name: str) -> str:
+def resolved_config_path(project_dir: Path, config_name: str,
+                         edit: Callable[[dict], None] | None = None) -> str:
     """Load ``configs/<config_name>`` from ``project_dir``, resolve its
     project-relative data paths to absolute, and write it to a temp YAML file.
+    ``edit``, if given, may modify the raw config dict in place first.
     Returns the temp file path."""
     raw = yaml.safe_load((project_dir / "configs" / config_name).read_text())
+    if edit is not None:
+        edit(raw)
 
     loader = raw["loader"]
     loader["source"] = str((project_dir / loader["source"]).resolve())
@@ -56,13 +60,13 @@ def resolved_config_path(project_dir: Path, config_name: str) -> str:
     return path
 
 
-def make_runner(project: str) -> Callable[[str], Pipeline]:
+def make_runner(project: str) -> Callable[..., Pipeline]:
     """Return a ``run_pipeline(config_name)`` bound to ``examples/<project>``."""
     project_dir = EXAMPLES_DIR / project
     prompt_dir = project_dir / "prompts"
 
-    def run_pipeline(config_name: str) -> Pipeline:
-        net = Pipeline(resolved_config_path(project_dir, config_name), prompt_dir=str(prompt_dir))
+    def run_pipeline(config_name: str, edit: Callable[[dict], None] | None = None) -> Pipeline:
+        net = Pipeline(resolved_config_path(project_dir, config_name, edit), prompt_dir=str(prompt_dir))
         net.execute_all()
         return net
 
