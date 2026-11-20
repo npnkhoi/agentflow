@@ -136,15 +136,8 @@ models:
   import it safely.
 - Requests are sent one item at a time, as with the other backends.
 
-Example Slurm job:
-
-```bash
-#!/bin/bash
-#SBATCH --gres=gpu:1
-#SBATCH --time=04:00:00
-conda activate vllm      # env with both vLLM and agentflow installed
-python my_pipeline.py    # config uses cls: vllm_local
-```
+For running on a cluster (environment setup, job script, time limits, offline
+nodes), see [slurm.md](slurm.md).
 
 ### GeminiVLM
 
