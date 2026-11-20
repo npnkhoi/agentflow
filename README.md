@@ -265,6 +265,7 @@ Detailed docs for each component live in [docs/](docs/):
 | [processors.md](docs/processors.md) | built-in and custom processors |
 | [output_types.md](docs/output_types.md) | stage outputs as Pydantic models |
 | [models.md](docs/models.md) | model backends and providers |
+| [slurm.md](docs/slurm.md) | running local models (`vllm_local`) on Slurm |
 | [demos.md](docs/demos.md) | in-context learning and demo pools |
 | [input_formater.md](docs/input_formater.md) | rendering inputs into prompts |
 | [extension_points.md](docs/extension_points.md) | the registration APIs |
