@@ -22,11 +22,17 @@
 #   mkdir -p logs). Pipeline output lands in output/test_vllm_local_caption/.
 #
 #SBATCH --job-name=af-vllm-local-test
+#SBATCH --partition=h100,h200
 #SBATCH --gres=gpu:1
 #SBATCH --cpus-per-task=4
 #SBATCH --mem=32G
 #SBATCH --time=00:45:00
 #SBATCH --output=logs/vllm_local_test_%j.out
+# Email on start and every termination (completed, failed, cancelled, timed out, requeued).
+# With no --mail-user, Slurm mails the submitting user at the cluster's MailDomain.
+# #SBATCH lines can't read env vars; to mail elsewhere without committing an address:
+#   sbatch --mail-user="$SLURM_MAIL" experimental/e1119_test_vllm_local.sbatch
+#SBATCH --mail-type=ALL
 
 set -euo pipefail
 

@@ -4,6 +4,7 @@ Usage:
     python -m pytest test/unit/test_vllm_local.py -q
 """
 import json
+import os
 import sys
 from dataclasses import dataclass
 from types import ModuleType, SimpleNamespace
@@ -170,3 +171,13 @@ def test_pipeline_builds_vllm_local_from_yaml(tmp_path, monkeypatch, fake_vllm):
     assert model._engine_args == {"max_model_len": 8192}
     assert model._generation_kwargs == {"temperature": 0}
     assert FakeLLM.instances == []  # building the pipeline must not load the model
+
+
+def test_engine_subprocess_uses_spawn_unless_overridden(fake_vllm, monkeypatch):
+    monkeypatch.delenv("VLLM_WORKER_MULTIPROC_METHOD", raising=False)
+    VLLMLocalLLM("", "", "m")._lazy_init()
+    assert os.environ["VLLM_WORKER_MULTIPROC_METHOD"] == "spawn"
+
+    monkeypatch.setenv("VLLM_WORKER_MULTIPROC_METHOD", "fork")
+    VLLMLocalLLM("", "", "other")._lazy_init()
+    assert os.environ["VLLM_WORKER_MULTIPROC_METHOD"] == "fork"

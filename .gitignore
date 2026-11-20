@@ -1,5 +1,6 @@
 # Custom
 tmp/
+logs/
 
 # Python
 __pycache__/
