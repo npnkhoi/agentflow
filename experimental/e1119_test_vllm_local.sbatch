@@ -43,7 +43,8 @@ export VLLM_LOCAL_ENGINE_ARGS="${VLLM_LOCAL_ENGINE_ARGS:-}"
 # Point at a shared cache if your home quota is small, e.g. HF_HOME=/scratch/$USER/hf
 export HF_HOME="${HF_HOME:-$HOME/.cache/huggingface}"
 
-# `conda activate` needs the shell hook in non-interactive batch shells.
+# Juno: conda comes from the miniconda module. `conda activate` needs the shell hook in batch shells.
+module load miniconda
 source "$(conda info --base)/etc/profile.d/conda.sh"
 conda activate "$CONDA_ENV"
 cd "$REPO"

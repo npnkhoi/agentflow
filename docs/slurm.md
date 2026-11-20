@@ -1,107 +1,76 @@
-# Local models on Slurm
+# Local models on Slurm (Juno)
 
-How to run a pipeline on a Slurm GPU node with the model loaded **inside the
-job** (`cls: vllm_local`). There is no `vllm serve` to start, no port to pick,
-and nothing left running when the job ends. Backend details are in
+With `cls: vllm_local`, the model loads inside your Slurm job: no `vllm serve`,
+no ports, nothing left running afterwards. Backend details are in
 [models.md](models.md#vllmlocalllm-cls-vllm_local).
 
-## 1. One-time environment setup
+Partitions used here:
 
-Do this in an interactive CPU session rather than on a login node, which may
-kill long installs. Replace `<cpu-partition>` with your cluster's CPU
-partition; on UTD Juno it is `normal`.
+| partition | for | GPUs per node |
+|---|---|---|
+| `normal` | setup (CPU only) | none |
+| `h200` | running models | 2 × H200 (141 GB) |
+| `h100` | running models | 1–4 × H100 (80–94 GB) |
+
+## 1. One-time setup
+
+On a `normal` node, because installs can get killed on the login node:
 
 ```bash
-srun --partition=<cpu-partition> --cpus-per-task=4 --mem=16G --time=01:00:00 --pty bash
+srun -p normal --cpus-per-task=4 --mem=16G --time=01:00:00 --pty bash
+module load miniconda
 conda create -n vllm python=3.12 -y
 source "$(conda info --base)/etc/profile.d/conda.sh" && conda activate vllm
-pip install vllm                         # first, so its torch/CUDA pins win
-pip install -e /path/to/agentflow pytest
-pip check
+pip install vllm                          # install first, so its torch/CUDA versions win
+pip install -e /path/to/agentflow
 ```
 
-vLLM's wheels ship their own CUDA libraries, so `module load cuda` is not needed.
-The node only needs a recent NVIDIA driver.
+## 2. Try the example
 
-## 2. Config
+From the repo root:
+
+```bash
+mkdir -p logs && sbatch examples/captioning/slurm_vllm_local.sbatch
+```
+
+This captions 2 images with Qwen2.5-VL-3B. Follow it with `tail -f logs/af-caption_<jobid>.out`.
+The first run takes about 15 minutes, mostly downloading about 7 GB of weights
+and compiling the model. When it ends, the log says `done: 2 ok, 0 failed` and
+the captions are in `examples/captioning/output/test_vllm_local_caption/SampleOutput/*/output.json`.
+The job runs on whichever of `h100` or `h200` has a free GPU first.
+
+## 3. Your own pipeline
+
+Copy [`run.py`](../examples/captioning/run.py) and
+[`slurm_vllm_local.sbatch`](../examples/captioning/slurm_vllm_local.sbatch)
+into your project. Then change the `cd` line and the config path, and set the
+`--time` limit. In the config:
 
 ```yaml
 models:
   qwen:
     cls: vllm_local
-    model_id: Qwen/Qwen2.5-VL-3B-Instruct
-    engine_args:                 # -> vllm.LLM(...)
+    model_id: Qwen/Qwen2.5-VL-3B-Instruct    # any Hugging Face model vLLM supports
+    engine_args:                             # -> vllm.LLM(...)
       max_model_len: 8192
-      # tensor_parallel_size: 2  # match --gres=gpu:2
-    generation_kwargs:           # -> vllm.SamplingParams(...)
+      # tensor_parallel_size: 2              # for a model too big for one GPU; also set --gres=gpu:2
+    generation_kwargs:                       # -> vllm.SamplingParams(...)
       temperature: 0
 ```
 
-On pre-Ampere GPUs (V100, RTX 6000, T4) also add `dtype: half` and
-`attention_backend: TRITON_ATTN` to `engine_args`. Hopper and Ampere GPUs
-(H200, H100, A100) need neither.
-
-## 3. Entry point
-
-```python
-# run_my_pipeline.py
-import agentflow  # registers built-in backends
-from agentflow.pipeline import Pipeline
-
-def main():
-    Pipeline("configs/my_config.yaml", prompt_dir="prompts").execute_all()
-
-if __name__ == "__main__":   # required: vLLM spawns a child process that re-imports this file
-    main()
-```
-
-## 4. Job script
-
-```bash
-#!/usr/bin/env bash
-#SBATCH --job-name=my-pipeline
-#SBATCH --partition=<gpu-partition>
-#SBATCH --gres=gpu:1
-#SBATCH --cpus-per-task=4
-#SBATCH --mem=32G
-#SBATCH --time=04:00:00
-#SBATCH --output=logs/%x_%j.out          # mkdir -p logs before submitting
-set -euo pipefail
-
-# `conda activate` needs the shell hook in batch shells.
-source "$(conda info --base)/etc/profile.d/conda.sh"
-conda activate vllm
-export HF_HOME=/path/to/scratch/hf        # model weights cache; keep it off a small home quota
-
-cd "$SLURM_SUBMIT_DIR"
-python run_my_pipeline.py
-```
-
-```bash
-mkdir -p logs && sbatch run_my_pipeline.sbatch
-```
-
-To check that the setup works before running your own pipeline, submit
-[`experimental/e1119_test_vllm_local.sbatch`](../experimental/e1119_test_vllm_local.sbatch).
-It captions two images and ends with `== PASSED`.
-
 ## Things to know
 
-- **Time limits are safe.** Every finished item and stage is cached under
-  `output/`, so if a job times out, resubmit the same job and it continues where
-  it stopped. Fully cached runs never load the model.
-- **Compute nodes without internet:** download the model on a login node first
-  (`hf download <model_id>`, with the same `HF_HOME`), then add
-  `export HF_HUB_OFFLINE=1` to the job script.
-- **Several models in one config:** each different model (or different
-  `engine_args`) loads its own engine in the same process, so the weights must
-  fit in GPU memory together. Lower `gpu_memory_utilization` in each one's
-  `engine_args` so their shares add up to under 1.0, for example 0.45 each.
-  Entries that differ only in `generation_kwargs` share one engine.
-- **Multi-GPU:** request `--gres=gpu:N` and set `tensor_parallel_size: N`.
-- **Fork errors:** AgentFlow sets `VLLM_WORKER_MULTIPROC_METHOD=spawn`, which
-  avoids "Cannot re-initialize CUDA in forked subprocess". That is why the
-  entry point needs the `__main__` guard.
-- **Debugging interactively:** `srun --partition=<gpu-partition> --gres=gpu:1 --time=01:00:00 --pty bash`,
-  then run the same commands by hand. Startup errors such as out of memory or a
-  bad model ID appear as a normal Python traceback.
+- **Resubmitting is safe.** Finished items are cached under `output/`, so a job
+  that hits its time limit continues where it stopped when you resubmit it.
+- **Keep the `if __name__ == "__main__":` guard** in your entry script. vLLM's
+  engine process re-imports the script, and without the guard it runs the pipeline again.
+- **Check `done: N ok, M failed`.** Errors such as a wrong `model_id` or running
+  out of GPU memory don't crash the run. Each item fails separately and the log
+  shows `Stage 0 raised ...` (vLLM's real error is in the `ERROR` lines above it).
+  `run.py` then exits with code 1, so Slurm marks the job FAILED and emails you.
+- **Harmless noise in the log:** "FlashInfer kernels are disabled" and, at exit,
+  `--- Logging error --- ... I/O operation on closed file`.
+- **Large models:** weights are cached in `~/.cache/huggingface`. For big models,
+  add `export HF_HOME=/work/$USER/hf` to the job script.
+- **Debugging by hand:** `srun -p h200 --gres=gpu:1 --time=01:00:00 --pty bash`,
+  then run the same commands as the job script (starting with `module load miniconda`).
