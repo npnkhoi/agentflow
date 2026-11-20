@@ -1,4 +1,5 @@
 import json
+import os
 import time
 import httpx
 from pathlib import Path
@@ -159,6 +160,10 @@ class VLLMLocalLLM(BaseLLM):
             raise ValueError("engine_args cannot set 'model'; use model_id instead")
 
     def _do_init(self) -> None:
+        # vLLM starts its engine core in a subprocess. Forking breaks once CUDA is initialized
+        # in this process (e.g. by vLLM's own multimodal warmup, or by caller code touching
+        # torch.cuda), and vLLM does not always detect that; spawn is safe either way.
+        os.environ.setdefault("VLLM_WORKER_MULTIPROC_METHOD", "spawn")
         try:
             from vllm import LLM
         except ImportError as e:

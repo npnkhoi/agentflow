@@ -128,6 +128,12 @@ models:
 - **Engine-level settings** (parallelism, context length, memory, dtype,
   quantization, `trust_remote_code`, `download_dir`, ...) go in `engine_args`.
   `model` is reserved; use `model_id`.
+- **Engine subprocess:** AgentFlow sets `VLLM_WORKER_MULTIPROC_METHOD=spawn`
+  (unless you already set it), because vLLM forking its engine after CUDA is
+  initialized in the main process fails with "Cannot re-initialize CUDA in
+  forked subprocess". If you drive a pipeline from your own script, put the
+  entry point under `if __name__ == "__main__":` so spawned processes can
+  import it safely.
 - Requests are sent one item at a time, as with the other backends.
 
 Example Slurm job:
