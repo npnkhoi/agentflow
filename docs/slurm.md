@@ -8,7 +8,8 @@ and nothing left running when the job ends. Backend details are in
 ## 1. One-time environment setup
 
 Do this in an interactive CPU session rather than on a login node, which may
-kill long installs:
+kill long installs. Replace `<cpu-partition>` with your cluster's CPU
+partition; on UTD Juno it is `normal`.
 
 ```bash
 srun --partition=<cpu-partition> --cpus-per-task=4 --mem=16G --time=01:00:00 --pty bash
